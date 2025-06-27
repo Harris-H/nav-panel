@@ -15,8 +15,8 @@
         <svg
           class="dropdown-icon"
           :class="{ rotated: showEngineSelector }"
-          width="14"
-          height="14"
+          width="16"
+          height="16"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -40,8 +40,8 @@
 
       <button class="search-button" @click="handleSearch">
         <svg
-          width="18"
-          height="18"
+          width="22"
+          height="22"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
@@ -246,8 +246,8 @@ onUnmounted(() => {
 
 <style scoped>
 .search-container {
-  max-width: 500px;
-  margin: 0 auto 40px;
+  max-width: 700px;
+  margin: 0 auto 50px;
   position: relative;
 }
 
@@ -256,9 +256,10 @@ onUnmounted(() => {
   background: rgba(255, 255, 255, 0.95);
   backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.2);
-  border-radius: 20px;
+  border-radius: 24px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
   transition: all 0.3s ease;
+  height: 64px;
 }
 
 .search-box:hover {
@@ -272,12 +273,13 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  padding: 8px 12px;
+  padding: 12px 16px;
   cursor: pointer;
   border-right: 1px solid rgba(0, 0, 0, 0.1);
   background: rgba(0, 0, 0, 0.02);
   transition: all 0.3s ease;
-  min-width: 60px;
+  min-width: 80px;
+  border-radius: 24px 0 0 24px;
 }
 
 .search-engine-selector:hover {
@@ -285,9 +287,9 @@ onUnmounted(() => {
 }
 
 .engine-icon {
-  width: 20px;
-  height: 20px;
-  border-radius: 4px;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
   object-fit: cover;
 }
 
@@ -297,14 +299,16 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 14px;
   font-weight: bold;
 }
 
 .dropdown-icon {
   color: #666;
   transition: transform 0.3s ease;
-  margin-left: 4px;
+  margin-left: 6px;
+  width: 16px;
+  height: 16px;
 }
 
 .dropdown-icon.rotated {
@@ -316,10 +320,10 @@ onUnmounted(() => {
   background: rgba(255, 255, 255, 0.98);
   backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 16px;
+  border-radius: 20px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  margin-top: 12px;
-  padding: 16px;
+  margin-top: 16px;
+  padding: 20px;
   overflow: hidden;
 }
 
@@ -358,18 +362,18 @@ onUnmounted(() => {
 }
 
 .engines-title {
-  font-size: 12px;
+  font-size: 13px;
   font-weight: 600;
   color: #666;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
   text-align: center;
 }
 
 .engines-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(80px, 1fr));
-  gap: 12px;
-  max-width: 400px;
+  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
+  gap: 16px;
+  max-width: 500px;
   margin: 0 auto;
 }
 
@@ -377,9 +381,9 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 12px 8px;
+  padding: 14px 10px;
   cursor: pointer;
-  border-radius: 12px;
+  border-radius: 14px;
   transition: all 0.2s ease;
   background: rgba(255, 255, 255, 0.5);
   border: 2px solid transparent;
@@ -397,15 +401,15 @@ onUnmounted(() => {
 }
 
 .engine-item-icon {
-  width: 24px;
-  height: 24px;
+  width: 28px;
+  height: 28px;
   border-radius: 6px;
   object-fit: cover;
-  margin-bottom: 6px;
+  margin-bottom: 8px;
 }
 
 .engine-item-name {
-  font-size: 11px;
+  font-size: 12px;
   font-weight: 500;
   color: #333;
   text-align: center;
@@ -414,20 +418,22 @@ onUnmounted(() => {
 
 .search-input {
   flex: 1;
-  padding: 16px 20px;
+  padding: 18px 24px;
   border: none;
-  font-size: 16px;
+  font-size: 18px;
   outline: none;
   background: transparent;
   color: #333;
+  line-height: 1.4;
 }
 
 .search-input::placeholder {
   color: #999;
+  font-size: 18px;
 }
 
 .search-button {
-  padding: 12px 16px;
+  padding: 16px 20px;
   border: none;
   background: transparent;
   cursor: pointer;
@@ -436,6 +442,7 @@ onUnmounted(() => {
   display: flex;
   align-items: center;
   justify-content: center;
+  border-radius: 0 24px 24px 0;
 }
 
 .search-button:hover {
@@ -547,13 +554,35 @@ onUnmounted(() => {
 /* 响应式设计 */
 @media (max-width: 768px) {
   .search-container {
+    max-width: 90%;
     padding: 0 16px;
-    margin-bottom: 24px;
+    margin-bottom: 30px;
+  }
+
+  .search-box {
+    height: 56px;
+    border-radius: 20px;
   }
 
   .search-engine-selector {
-    min-width: 50px;
-    padding: 6px 10px;
+    min-width: 70px;
+    padding: 10px 12px;
+    border-radius: 20px 0 0 20px;
+  }
+
+  .engine-icon {
+    width: 24px;
+    height: 24px;
+  }
+
+  .engine-icon-fallback {
+    font-size: 12px;
+  }
+
+  .dropdown-icon {
+    width: 14px;
+    height: 14px;
+    margin-left: 4px;
   }
 
   .engines-grid {
@@ -575,12 +604,22 @@ onUnmounted(() => {
   }
 
   .search-input {
-    padding: 14px 16px;
+    padding: 16px 18px;
+    font-size: 16px;
+  }
+
+  .search-input::placeholder {
     font-size: 16px;
   }
 
   .search-button {
-    padding: 10px 14px;
+    padding: 12px 16px;
+    border-radius: 0 20px 20px 0;
+  }
+
+  .search-button svg {
+    width: 20px;
+    height: 20px;
   }
 
   .slide-down-enter-to,

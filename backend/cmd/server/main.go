@@ -60,6 +60,7 @@ func main() {
 		{
 			websites.GET("", websiteHandler.GetAll)
 			websites.POST("", websiteHandler.Create)
+			websites.PUT("/reorder", websiteHandler.Reorder)
 			websites.PUT("/:id", websiteHandler.Update)
 			websites.DELETE("/:id", websiteHandler.Delete)
 		}

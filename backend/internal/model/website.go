@@ -10,6 +10,7 @@ type Website struct {
 	Icon        *string   `json:"icon" db:"icon"`
 	Description *string   `json:"description" db:"description"`
 	Category    *string   `json:"category" db:"category"`
+	SortOrder   int       `json:"sortOrder" db:"sort_order"`
 	CreatedAt   time.Time `json:"createdAt" db:"created_at"`
 	UpdatedAt   time.Time `json:"updatedAt" db:"updated_at"`
 }
@@ -30,4 +31,9 @@ type UpdateWebsiteRequest struct {
 	Icon        *string `json:"icon"`
 	Description *string `json:"description"`
 	Category    *string `json:"category"`
+}
+
+// ReorderWebsitesRequest 重新排序网站请求
+type ReorderWebsitesRequest struct {
+	WebsiteIds []string `json:"websiteIds" binding:"required"`
 } 

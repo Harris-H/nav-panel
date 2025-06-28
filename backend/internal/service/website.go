@@ -89,6 +89,25 @@ func (s *WebsiteService) Delete(id string) error {
 	return s.repo.Delete(id)
 }
 
+func (s *WebsiteService) Reorder(req *model.ReorderWebsitesRequest) ([]model.Website, error) {
+	// 验证所有网站ID是否存在
+	for _, id := range req.WebsiteIds {
+		_, err := s.repo.GetByID(id)
+		if err != nil {
+			return nil, fmt.Errorf("website not found: %s", id)
+		}
+	}
+
+	// 执行重新排序
+	err := s.repo.Reorder(req.WebsiteIds)
+	if err != nil {
+		return nil, fmt.Errorf("failed to reorder websites: %w", err)
+	}
+
+	// 返回重新排序后的列表
+	return s.repo.GetAll()
+}
+
 // generateID 生成唯一ID
 func generateID() string {
 	return fmt.Sprintf("%d", time.Now().UnixNano())

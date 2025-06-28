@@ -76,6 +76,13 @@ class ApiClient {
     })
   }
 
+  async reorderWebsites(websiteIds: string[]): Promise<Website[]> {
+    return this.request<Website[]>('/websites/reorder', {
+      method: 'PUT',
+      body: JSON.stringify({ websiteIds }),
+    })
+  }
+
   // 搜索引擎相关API
   async getSearchEngines(): Promise<SearchEngine[]> {
     return this.request<SearchEngine[]>('/search-engines')

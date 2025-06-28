@@ -74,25 +74,19 @@ func Migrate(db *sql.DB) error {
 	}
 
 	// 检查并添加新字段（向后兼容）
-	alterTableSQL := []string{
-		"ALTER TABLE search_engines ADD COLUMN icon_data BLOB",
-		"ALTER TABLE search_engines ADD COLUMN icon_type TEXT",
+	if err := addColumnIfNotExists(db, "search_engines", "icon_data", "BLOB"); err != nil {
+		return err
 	}
-
-	for _, sql := range alterTableSQL {
-		_, err := db.Exec(sql)
-		// 忽略字段已存在的错误
-		if err != nil && !isColumnExistsError(err) {
-			return err
-		}
+	if err := addColumnIfNotExists(db, "search_engines", "icon_type", "TEXT"); err != nil {
+		return err
+	}
+	if err := addColumnIfNotExists(db, "websites", "sort_order", "INTEGER DEFAULT 0"); err != nil {
+		return err
 	}
 
 	// 删除旧的icon字段（如果存在）
-	_, err := db.Exec("ALTER TABLE search_engines DROP COLUMN icon")
-	// 忽略字段不存在的错误
-	if err != nil && !isColumnNotExistsError(err) {
-		return err
-	}
+	// SQLite不支持直接删除列，所以我们跳过这个操作
+	// 旧的icon字段如果存在也不会影响功能
 
 	// 创建应用设置表
 	settingsSQL := `
@@ -148,15 +142,47 @@ func Migrate(db *sql.DB) error {
 	return nil
 }
 
-// isColumnExistsError 检查是否是字段已存在的错误
-func isColumnExistsError(err error) bool {
-	return err != nil && (
-		err.Error() == "duplicate column name: icon_data" ||
-		err.Error() == "duplicate column name: icon_type")
+// addColumnIfNotExists 检查列是否存在，如果不存在则添加
+func addColumnIfNotExists(db *sql.DB, tableName, columnName, columnType string) error {
+	// 检查列是否存在
+	exists, err := columnExists(db, tableName, columnName)
+	if err != nil {
+		return err
+	}
+	
+	// 如果列不存在，则添加
+	if !exists {
+		sql := "ALTER TABLE " + tableName + " ADD COLUMN " + columnName + " " + columnType
+		_, err := db.Exec(sql)
+		return err
+	}
+	
+	return nil
 }
 
-// isColumnNotExistsError 检查是否是字段不存在的错误
-func isColumnNotExistsError(err error) bool {
-	return err != nil && (
-		err.Error() == "no such column: icon")
+// columnExists 检查指定表中的列是否存在
+func columnExists(db *sql.DB, tableName, columnName string) (bool, error) {
+	query := "PRAGMA table_info(" + tableName + ")"
+	rows, err := db.Query(query)
+	if err != nil {
+		return false, err
+	}
+	defer rows.Close()
+
+	for rows.Next() {
+		var cid int
+		var name, dataType string
+		var notNull, dfltValue, pk interface{}
+		
+		err := rows.Scan(&cid, &name, &dataType, &notNull, &dfltValue, &pk)
+		if err != nil {
+			return false, err
+		}
+		
+		if name == columnName {
+			return true, nil
+		}
+	}
+	
+	return false, nil
 } 

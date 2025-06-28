@@ -256,6 +256,32 @@ export const useAppStore = defineStore('app', () => {
     }
   }
 
+  const reorderSites = async (fromIndex: number, toIndex: number) => {
+    if (fromIndex === toIndex) return
+
+    try {
+      // 先在前端更新，提供即时反馈
+      const sitesArray = [...sites.value]
+      const [movedSite] = sitesArray.splice(fromIndex, 1)
+      sitesArray.splice(toIndex, 0, movedSite)
+
+      sites.value = sitesArray
+
+      // 发送新的顺序到后端
+      const websiteIds = sitesArray.map((site) => site.id)
+      await api.reorderWebsites(websiteIds)
+
+      console.log('Sites reordered successfully:', { fromIndex, toIndex })
+    } catch (err) {
+      console.error('Failed to reorder sites:', err)
+
+      // 如果后端更新失败，重新加载数据以恢复正确的顺序
+      await loadData()
+
+      handleError(err, 'Error reordering sites')
+    }
+  }
+
   // 模态框控制
   const openAddCardModal = () => {
     editingCard.value = null
@@ -641,6 +667,7 @@ export const useAppStore = defineStore('app', () => {
     addSite,
     updateSite,
     deleteSite,
+    reorderSites,
     openAddCardModal,
     openEditCardModal,
     closeAddCardModal,

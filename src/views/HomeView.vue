@@ -15,20 +15,53 @@
 
     <main class="main-content">
       <div class="sites-grid" :style="gridStyle">
-        <div
-          v-for="site in store.sites"
-          :key="site.id"
-          class="site-card"
-          :style="cardStyle"
-          @click="openSite(site.url)"
-          @contextmenu.prevent="handleRightClick($event, site)"
-        >
-          <div class="site-icon">
-            <img v-if="site.icon" :src="site.icon" :alt="site.name" />
-            <span v-else>{{ site.name.charAt(0).toUpperCase() }}</span>
+        <template v-for="(site, index) in store.sites" :key="site.id">
+          <!-- 插入指示器 -->
+          <div
+            v-if="
+              dragState.isDragging &&
+              (dragState.movingRight
+                ? dragState.insertIndex + 1 === index
+                : dragState.insertIndex === index)
+            "
+            class="insert-indicator"
+          ></div>
+
+          <div
+            class="site-card"
+            :class="{
+              dragging: dragState.isDragging && dragState.dragIndex === index,
+              'drag-placeholder': dragState.isDragging && dragState.dragIndex === index,
+            }"
+            :style="cardStyle"
+            @contextmenu.prevent="handleRightClick($event, site)"
+            @mousedown="handleMouseDown($event, index)"
+          >
+            <div class="site-icon" style="pointer-events: none">
+              <img
+                v-if="site.icon"
+                :src="site.icon"
+                :alt="site.name"
+                style="pointer-events: none"
+              />
+              <span v-else style="pointer-events: none">{{
+                site.name.charAt(0).toUpperCase()
+              }}</span>
+            </div>
+            <div class="site-name" style="pointer-events: none">{{ site.name }}</div>
           </div>
-          <div class="site-name">{{ site.name }}</div>
-        </div>
+        </template>
+
+        <!-- 末尾插入指示器 -->
+        <div
+          v-if="
+            dragState.isDragging &&
+            (dragState.movingRight
+              ? dragState.insertIndex === store.sites.length - 1
+              : dragState.insertIndex === store.sites.length)
+          "
+          class="insert-indicator"
+        ></div>
 
         <div class="site-card add-card" :style="cardStyle" @click="store.openAddCardModal()">
           <div class="site-icon">+</div>
@@ -106,6 +139,20 @@ const contextMenu = ref({
   site: null as Website | null,
 })
 
+// 拖拽状态
+const dragState = ref({
+  isDragging: false,
+  dragIndex: -1,
+  insertIndex: -1, // 改为插入位置而不是覆盖位置
+  startX: 0,
+  startY: 0,
+  currentX: 0,
+  currentY: 0,
+  lastX: 0, // 上一次的X位置，用于计算移动方向
+  movingRight: true, // 是否向右移动
+  dragPreview: null as HTMLElement | null,
+})
+
 // 右键菜单样式
 const contextMenuStyle = computed(() => ({
   left: `${contextMenu.value.x}px`,
@@ -114,6 +161,277 @@ const contextMenuStyle = computed(() => ({
 
 const openSite = (url: string) => {
   window.open(url, '_blank')
+}
+
+// 拖拽辅助函数
+const createDragPreview = (sourceElement: HTMLElement, index: number) => {
+  const site = store.sites[index]
+  if (!site) {
+    return
+  }
+
+  // 找到实际的卡片元素
+  const cardElement = sourceElement.closest('.site-card') as HTMLElement
+  if (!cardElement) {
+    return
+  }
+
+  // 创建拖拽预览元素，克隆原卡片的结构和样式
+  const preview = document.createElement('div')
+  preview.className = 'drag-preview site-card'
+
+  // 复制原卡片的内容，保持完整的卡片结构
+  const iconElement = site.icon
+    ? `<img src="${site.icon}" alt="${site.name}" />`
+    : `<span>${site.name.charAt(0).toUpperCase()}</span>`
+
+  preview.innerHTML = `
+    <div class="site-icon">
+      ${iconElement}
+    </div>
+    <div class="site-name">${site.name}</div>
+  `
+
+  // 设置初始位置（鼠标在卡片中心）
+  const currentX = dragState.value.currentX || dragState.value.startX
+  const currentY = dragState.value.currentY || dragState.value.startY
+
+  // 卡片尺寸
+  const cardWidth = 80
+  const cardHeight = 80 // 准确高度：14px(上padding) + 32px(图标) + 8px(间距) + 15px(文字) + 14px(下padding) ≈ 83px
+
+  preview.style.position = 'fixed'
+  preview.style.left = `${currentX - cardWidth / 2}px` // 鼠标在卡片水平中心
+  preview.style.top = `${currentY - cardHeight / 2}px` // 鼠标在卡片垂直中心
+  preview.style.zIndex = '9999'
+  preview.style.pointerEvents = 'none'
+  preview.style.width = `${cardWidth}px` // 固定宽度，保持卡片比例
+
+  document.body.appendChild(preview)
+  dragState.value.dragPreview = preview
+}
+
+const updateDragPreview = (x: number, y: number) => {
+  if (dragState.value.dragPreview) {
+    // 卡片尺寸（与创建时保持一致）
+    const cardWidth = 80
+    const cardHeight = 80
+
+    // 让鼠标位置在卡片中心
+    dragState.value.dragPreview.style.left = `${x - cardWidth / 2}px`
+    dragState.value.dragPreview.style.top = `${y - cardHeight / 2}px`
+  }
+}
+
+const calculateInsertPosition = (x: number): number => {
+  const sitesGrid = document.querySelector('.sites-grid')
+  if (!sitesGrid) return -1
+
+  const allCards = Array.from(document.querySelectorAll('.site-card:not(.add-card)'))
+  if (allCards.length === 0) return 0
+
+  // 如果只有一个卡片（被拖拽的），返回0
+  if (allCards.length === 1) return 0
+
+  // 获取所有卡片的位置信息，排除被拖拽的卡片
+  const visibleCardInfos = allCards
+    .map((card, index) => ({
+      element: card,
+      originalIndex: index, // 在原始sites数组中的索引
+      rect: card.getBoundingClientRect(),
+      isDragTarget: index === dragState.value.dragIndex,
+    }))
+    .filter((card) => !card.isDragTarget) // 只保留可见的卡片
+
+  // 计算插入位置的逻辑：
+  // 1. 遍历所有可见卡片（排除被拖拽的）
+  // 2. 找到鼠标当前悬停的卡片区域
+  // 3. 根据移动方向决定插入位置
+  // 4. 最后转换回原始数组的索引
+
+  let insertIndex = store.sites.length // 默认插入到末尾
+
+  for (let i = 0; i < visibleCardInfos.length; i++) {
+    const card = visibleCardInfos[i]
+    const rect = card.rect
+
+    const leftEdge = rect.left
+    const rightEdge = rect.right
+
+    // 检查鼠标是否在当前卡片的水平范围内
+    if (x >= leftEdge && x <= rightEdge) {
+      // 根据移动方向使用不同的策略
+      if (dragState.value.movingRight) {
+        // 向右移动：基于前一个卡片的位置计算threshold
+        let threshold = leftEdge
+        if (i > 0) {
+          // 如果有前一个卡片，基于前一个卡片的右侧向左偏移30%宽度
+          const prevCard = visibleCardInfos[i - 1]
+          threshold = prevCard.rect.right - prevCard.rect.width * 0.05
+        } else {
+          // 如果是第一个卡片，使用卡片自身的10%位置
+          threshold = leftEdge + rect.width * 0.1
+        }
+
+        if (x >= threshold) {
+          // 插入到这个可见卡片之后
+          // 需要转换回原始索引：找到下一个卡片的位置，或插入到末尾
+          if (i + 1 < visibleCardInfos.length) {
+            insertIndex = visibleCardInfos[i + 1].originalIndex
+          } else {
+            insertIndex = store.sites.length
+          }
+        } else {
+          // 插入到这个可见卡片之前
+          insertIndex = card.originalIndex
+        }
+      } else {
+        // 向左移动：只要鼠标还没到达卡片右边缘的30%，就插入到左侧
+        const threshold = rightEdge - rect.width * 0.05
+        if (x <= threshold) {
+          // 插入到这个可见卡片之前
+          insertIndex = card.originalIndex
+        } else {
+          // 插入到这个可见卡片之后
+          if (i + 1 < visibleCardInfos.length) {
+            insertIndex = visibleCardInfos[i + 1].originalIndex
+          } else {
+            insertIndex = store.sites.length
+          }
+        }
+      }
+      break
+    }
+
+    // 如果鼠标在当前卡片左边，插入到这个位置
+    if (x < leftEdge) {
+      insertIndex = card.originalIndex
+      break
+    }
+  }
+
+  // 处理被拖拽卡片的索引调整
+  // 如果插入位置在被拖拽卡片之后，需要减1（因为被拖拽的卡片会被移除）
+  if (insertIndex > dragState.value.dragIndex) {
+    insertIndex = insertIndex - 1
+  }
+
+  // 确保索引在有效范围内，允许插入到末尾
+  insertIndex = Math.max(0, Math.min(insertIndex, store.sites.length))
+
+  return insertIndex
+}
+
+const cleanupDragPreview = () => {
+  if (dragState.value.dragPreview) {
+    document.body.removeChild(dragState.value.dragPreview)
+    dragState.value.dragPreview = null
+  }
+}
+
+// 拖拽功能
+const handleMouseDown = (event: MouseEvent, index: number) => {
+  // 阻止右键和中键拖拽
+  if (event.button !== 0) return
+
+  // 防止拖拽时触发右键菜单
+  hideContextMenu()
+
+  let hasDragged = false
+  const startX = event.clientX
+  const startY = event.clientY
+
+  const handleMouseMove = (moveEvent: MouseEvent) => {
+    const deltaX = moveEvent.clientX - startX
+    const deltaY = moveEvent.clientY - startY
+    const distance = Math.sqrt(deltaX * deltaX + deltaY * deltaY)
+
+    // 当移动距离超过5px时开始拖拽
+    if (!hasDragged && distance > 5) {
+      hasDragged = true
+
+      // 先设置拖拽状态
+      dragState.value = {
+        isDragging: true,
+        dragIndex: index,
+        insertIndex: -1,
+        startX: startX,
+        startY: startY,
+        currentX: moveEvent.clientX,
+        currentY: moveEvent.clientY,
+        lastX: moveEvent.clientX,
+        movingRight: true,
+        dragPreview: null,
+      }
+
+      // 然后创建拖拽预览
+      createDragPreview(event.target as HTMLElement, index)
+
+      document.body.style.userSelect = 'none'
+      document.body.classList.add('dragging')
+    }
+
+    if (hasDragged) {
+      // 计算移动方向
+      const deltaX = moveEvent.clientX - dragState.value.lastX
+      if (Math.abs(deltaX) > 2) {
+        // 避免微小移动导致频繁切换方向
+        dragState.value.movingRight = deltaX > 0
+      }
+
+      dragState.value.lastX = dragState.value.currentX
+      dragState.value.currentX = moveEvent.clientX
+      dragState.value.currentY = moveEvent.clientY
+
+      // 更新拖拽预览位置
+      updateDragPreview(moveEvent.clientX, moveEvent.clientY)
+
+      // 计算插入位置
+      const insertIndex = calculateInsertPosition(moveEvent.clientX)
+      dragState.value.insertIndex = insertIndex
+    }
+  }
+
+  const handleMouseUp = async () => {
+    if (hasDragged) {
+      // 执行排序 - 允许插入到末尾
+      if (dragState.value.insertIndex !== -1 && dragState.value.insertIndex !== index) {
+        await store.reorderSites(index, dragState.value.insertIndex)
+      }
+
+      // 清理拖拽预览
+      cleanupDragPreview()
+
+      document.body.style.userSelect = ''
+      document.body.classList.remove('dragging')
+    } else {
+      // 如果没有拖拽，执行原来的点击事件
+      const site = store.sites[index]
+      if (site) {
+        openSite(site.url)
+      }
+    }
+
+    // 重置拖拽状态
+    dragState.value = {
+      isDragging: false,
+      dragIndex: -1,
+      insertIndex: -1,
+      startX: 0,
+      startY: 0,
+      currentX: 0,
+      currentY: 0,
+      lastX: 0,
+      movingRight: true,
+      dragPreview: null,
+    }
+
+    document.removeEventListener('mousemove', handleMouseMove)
+    document.removeEventListener('mouseup', handleMouseUp)
+  }
+
+  document.addEventListener('mousemove', handleMouseMove)
+  document.addEventListener('mouseup', handleMouseUp)
 }
 
 // 处理右键点击
@@ -223,9 +541,7 @@ const cardStyle = computed(() => {
 })
 
 onMounted(() => {
-  console.log('HomeView mounted')
   store.loadData()
-  console.log('Data loaded, sites count:', store.sites?.length || 0)
 
   // 添加全局点击事件监听，用于关闭右键菜单
   document.addEventListener('click', handleClickOutside)
@@ -337,7 +653,7 @@ onUnmounted(() => {
   border-radius: 12px;
   padding: 12px 8px;
   text-align: center;
-  cursor: pointer;
+  cursor: grab;
   transition:
     all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275),
     border-radius 0.3s ease,
@@ -374,6 +690,101 @@ onUnmounted(() => {
   box-shadow:
     0 8px 24px rgba(0, 0, 0, 0.15),
     inset 0 1px 0 rgba(255, 255, 255, 0.2);
+}
+
+/* 拖拽相关样式 */
+.site-card:active {
+  cursor: grabbing;
+}
+
+.site-card.dragging {
+  opacity: 0.3;
+  transform: scale(0.95);
+  pointer-events: none;
+  transition: all 0.2s ease;
+}
+
+.site-card.drag-placeholder {
+  opacity: 0.3;
+  transform: scale(0.95);
+  border: 2px dashed rgba(255, 255, 255, 0.5);
+}
+
+/* 拖拽预览样式 - 继承卡片样式并增强 */
+.drag-preview.site-card {
+  position: fixed !important;
+  z-index: 9999 !important;
+  pointer-events: none !important;
+  transform: rotate(3deg) scale(1.08) !important;
+  opacity: 0.92 !important;
+  transition: none !important;
+
+  /* 增强的卡片样式 */
+  background: linear-gradient(
+    145deg,
+    rgba(255, 255, 255, 0.3) 0%,
+    rgba(255, 255, 255, 0.18) 100%
+  ) !important;
+  backdrop-filter: blur(25px) !important;
+  border: 2px solid rgba(255, 255, 255, 0.5) !important;
+  border-radius: 15px !important;
+  box-shadow:
+    0 25px 50px rgba(0, 0, 0, 0.6),
+    inset 0 2px 6px rgba(255, 255, 255, 0.4),
+    0 0 0 1px rgba(255, 255, 255, 0.2) !important;
+
+  /* 确保内容样式正确 */
+  color: white !important;
+  cursor: grabbing !important;
+  padding: 14px 10px !important;
+  min-width: 80px !important;
+}
+
+/* 拖拽预览内容的特殊样式 */
+.drag-preview.site-card .site-icon {
+  transform: scale(1.1) !important;
+  filter: brightness(1.1) contrast(1.05) !important;
+}
+
+.drag-preview.site-card .site-name {
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3) !important;
+  font-weight: 700 !important;
+}
+
+/* 拖拽预览内的图标和名称会继承原卡片的样式 */
+
+/* 插入指示器样式 */
+.insert-indicator {
+  width: 3px;
+  height: 60px;
+  background: linear-gradient(to bottom, #667eea, #764ba2);
+  border-radius: 2px;
+  opacity: 0.9;
+  animation: pulse 0.8s ease-in-out infinite alternate;
+  box-shadow: 0 0 8px rgba(102, 126, 234, 0.6);
+  margin: 0 6px;
+  align-self: center;
+  justify-self: center;
+}
+
+@keyframes pulse {
+  from {
+    opacity: 0.6;
+    transform: scaleX(1);
+  }
+  to {
+    opacity: 1;
+    transform: scaleX(1.2);
+  }
+}
+
+/* 全局拖拽状态 */
+body.dragging {
+  cursor: grabbing !important;
+}
+
+body.dragging * {
+  cursor: grabbing !important;
 }
 
 .add-card {

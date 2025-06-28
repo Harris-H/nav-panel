@@ -91,4 +91,21 @@ func (h *WebsiteHandler) Delete(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"message": "Website deleted successfully"})
+}
+
+// Reorder 重新排序网站
+func (h *WebsiteHandler) Reorder(c *gin.Context) {
+	var req model.ReorderWebsitesRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+		return
+	}
+
+	websites, err := h.service.Reorder(&req)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"data": websites})
 } 

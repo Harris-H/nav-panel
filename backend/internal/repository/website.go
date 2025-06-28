@@ -16,9 +16,9 @@ func NewWebsiteRepository(db *sql.DB) *WebsiteRepository {
 
 func (r *WebsiteRepository) GetAll() ([]model.Website, error) {
 	query := `
-		SELECT id, name, url, icon, description, category, created_at, updated_at 
+		SELECT id, name, url, icon, description, category, created_at, updated_at, COALESCE(sort_order, 0) as sort_order
 		FROM websites 
-		ORDER BY created_at DESC
+		ORDER BY sort_order ASC, created_at DESC
 	`
 	
 	rows, err := r.db.Query(query)
@@ -30,7 +30,7 @@ func (r *WebsiteRepository) GetAll() ([]model.Website, error) {
 	var websites []model.Website
 	for rows.Next() {
 		var w model.Website
-		err := rows.Scan(&w.ID, &w.Name, &w.URL, &w.Icon, &w.Description, &w.Category, &w.CreatedAt, &w.UpdatedAt)
+		err := rows.Scan(&w.ID, &w.Name, &w.URL, &w.Icon, &w.Description, &w.Category, &w.CreatedAt, &w.UpdatedAt, &w.SortOrder)
 		if err != nil {
 			return nil, err
 		}
@@ -42,13 +42,13 @@ func (r *WebsiteRepository) GetAll() ([]model.Website, error) {
 
 func (r *WebsiteRepository) GetByID(id string) (*model.Website, error) {
 	query := `
-		SELECT id, name, url, icon, description, category, created_at, updated_at 
+		SELECT id, name, url, icon, description, category, created_at, updated_at, COALESCE(sort_order, 0) as sort_order
 		FROM websites 
 		WHERE id = ?
 	`
 	
 	var w model.Website
-	err := r.db.QueryRow(query, id).Scan(&w.ID, &w.Name, &w.URL, &w.Icon, &w.Description, &w.Category, &w.CreatedAt, &w.UpdatedAt)
+	err := r.db.QueryRow(query, id).Scan(&w.ID, &w.Name, &w.URL, &w.Icon, &w.Description, &w.Category, &w.CreatedAt, &w.UpdatedAt, &w.SortOrder)
 	if err != nil {
 		return nil, err
 	}
@@ -91,4 +91,25 @@ func (r *WebsiteRepository) Delete(id string) error {
 	query := "DELETE FROM websites WHERE id = ?"
 	_, err := r.db.Exec(query, id)
 	return err
+}
+
+func (r *WebsiteRepository) Reorder(websiteIds []string) error {
+	// 开始事务
+	tx, err := r.db.Begin()
+	if err != nil {
+		return err
+	}
+	defer tx.Rollback()
+
+	// 更新每个网站的排序
+	for i, id := range websiteIds {
+		query := "UPDATE websites SET sort_order = ?, updated_at = ? WHERE id = ?"
+		_, err := tx.Exec(query, i, time.Now(), id)
+		if err != nil {
+			return err
+		}
+	}
+
+	// 提交事务
+	return tx.Commit()
 } 

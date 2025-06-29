@@ -1,7 +1,5 @@
 <template>
   <div class="home-container" :style="containerStyle">
-    <div class="debug-info">调试: 组件已加载</div>
-
     <header class="app-header">
       <h1>导航面板</h1>
       <div class="header-actions">
@@ -559,18 +557,6 @@ onUnmounted(() => {
   padding: 20px;
   color: white;
   transition: background 0.3s ease;
-}
-
-.debug-info {
-  position: fixed;
-  top: 10px;
-  right: 10px;
-  background: red;
-  color: white;
-  padding: 5px 10px;
-  border-radius: 4px;
-  z-index: 9999;
-  font-size: 12px;
 }
 
 .app-header {

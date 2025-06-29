@@ -320,10 +320,10 @@ onUnmounted(() => {
   background: rgba(255, 255, 255, 0.98);
   backdrop-filter: blur(20px);
   border: 1px solid rgba(255, 255, 255, 0.3);
-  border-radius: 20px;
+  border-radius: 12px;
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.1);
-  margin-top: 16px;
-  padding: 20px;
+  margin-top: 8px;
+  padding: 12px;
   overflow: hidden;
 }
 
@@ -358,22 +358,22 @@ onUnmounted(() => {
 .slide-down-leave-from {
   opacity: 1;
   transform: translateY(0);
-  max-height: 200px;
+  max-height: 160px;
 }
 
 .engines-title {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 600;
   color: #666;
-  margin-bottom: 16px;
+  margin-bottom: 8px;
   text-align: center;
 }
 
 .engines-grid {
   display: grid;
-  grid-template-columns: repeat(auto-fit, minmax(90px, 1fr));
-  gap: 16px;
-  max-width: 500px;
+  grid-template-columns: repeat(auto-fit, minmax(75px, 1fr));
+  gap: 8px;
+  max-width: 450px;
   margin: 0 auto;
 }
 
@@ -381,9 +381,9 @@ onUnmounted(() => {
   display: flex;
   flex-direction: column;
   align-items: center;
-  padding: 14px 10px;
+  padding: 8px 6px;
   cursor: pointer;
-  border-radius: 14px;
+  border-radius: 8px;
   transition: all 0.2s ease;
   background: rgba(255, 255, 255, 0.5);
   border: 2px solid transparent;
@@ -401,15 +401,15 @@ onUnmounted(() => {
 }
 
 .engine-item-icon {
-  width: 28px;
-  height: 28px;
+  width: 24px;
+  height: 24px;
   border-radius: 6px;
   object-fit: cover;
-  margin-bottom: 8px;
+  margin-bottom: 4px;
 }
 
 .engine-item-name {
-  font-size: 12px;
+  font-size: 14px;
   font-weight: 500;
   color: #333;
   text-align: center;
@@ -586,12 +586,12 @@ onUnmounted(() => {
   }
 
   .engines-grid {
-    grid-template-columns: repeat(auto-fit, minmax(70px, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(auto-fit, minmax(65px, 1fr));
+    gap: 6px;
   }
 
   .engine-item {
-    padding: 10px 6px;
+    padding: 8px 4px;
   }
 
   .engine-item-icon {
@@ -600,7 +600,7 @@ onUnmounted(() => {
   }
 
   .engine-item-name {
-    font-size: 10px;
+    font-size: 12px;
   }
 
   .search-input {
@@ -624,7 +624,7 @@ onUnmounted(() => {
 
   .slide-down-enter-to,
   .slide-down-leave-from {
-    max-height: 180px;
+    max-height: 140px;
   }
 }
 </style>

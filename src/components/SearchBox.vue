@@ -108,7 +108,7 @@
 </template>
 
 <script setup lang="ts">
-import { ref, computed, onMounted, onUnmounted, watch } from 'vue'
+import { ref, computed, onMounted, onUnmounted } from 'vue'
 import { useAppStore } from '@/stores/app'
 
 const store = useAppStore()
@@ -175,12 +175,6 @@ const handleSearch = () => {
 
 // 选择搜索引擎
 const selectSearchEngine = (engineId: string) => {
-  console.log('🎯 SearchBox: 选择搜索引擎', engineId)
-  console.log(
-    '🎯 可用引擎:',
-    store.settings.search.engines.map((e) => ({ id: e.id, name: e.name })),
-  )
-
   store.setCurrentSearchEngine(engineId)
   showEngineSelector.value = false
 }
@@ -210,20 +204,6 @@ const handleClickOutside = (event: Event) => {
     showSiteSearch.value = false
   }
 }
-
-// 添加调试 watch
-watch(
-  () => showEngineSelector.value,
-  (isOpen) => {
-    if (isOpen) {
-      console.log('🔍 SearchBox: 下拉菜单打开')
-      console.log('📊 store.settings.search.engines:', store.settings.search.engines)
-      console.log('📊 engines 数量:', store.settings.search.engines?.length || 0)
-      console.log('📊 当前搜索引擎:', store.currentSearchEngine)
-      console.log('📊 默认搜索引擎:', store.defaultSearchEngine)
-    }
-  },
-)
 
 onMounted(() => {
   // 添加全局点击事件监听

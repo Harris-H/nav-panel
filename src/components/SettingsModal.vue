@@ -420,11 +420,6 @@ watch(
       localSettings.value = clonedSettings
       originalSettings = JSON.parse(JSON.stringify(clonedSettings))
 
-      console.log('SettingsModal: Settings updated', {
-        engines: localSettings.value.search.engines,
-        defaultEngineId: localSettings.value.search.defaultEngineId,
-      })
-
       // 检查是否有已上传的图片（base64格式）
       if (
         settings.background?.type === 'image' &&
@@ -459,15 +454,9 @@ const updateBackgroundType = () => {
 
 // 保存设置
 const saveSettings = async () => {
-  console.log('Saving settings:', localSettings.value)
-  console.log('Search engines:', localSettings.value.search.engines)
-  console.log('Default engine ID:', localSettings.value.search.defaultEngineId)
-
   try {
     await store.updateSettings(localSettings.value)
     store.closeSettingsModal()
-
-    console.log('Settings saved successfully. Current search engine:', store.currentSearchEngine)
   } catch (error) {
     console.error('Failed to save settings:', error)
     alert('保存设置失败，请重试')
@@ -688,11 +677,6 @@ const saveEngine = async () => {
     // 在 store 操作完成后，同步更新本地设置
     localSettings.value.search.engines = [...store.settings.search.engines]
 
-    console.log('搜索引擎保存成功，最新数据:', {
-      store: store.settings.search.engines,
-      local: localSettings.value.search.engines,
-    })
-
     closeEngineModal()
     alert(editingEngineIndex.value === -1 ? '搜索引擎添加成功！' : '搜索引擎更新成功！')
   } catch (error) {
@@ -740,11 +724,6 @@ const removeSearchEngine = async (index: number) => {
 
     // 同步默认搜索引擎ID
     localSettings.value.search.defaultEngineId = store.settings.search.defaultEngineId
-
-    console.log('搜索引擎删除成功，最新数据:', {
-      store: store.settings.search.engines,
-      local: localSettings.value.search.engines,
-    })
 
     alert('搜索引擎删除成功！')
   } catch (error) {

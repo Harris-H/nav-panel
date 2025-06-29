@@ -154,7 +154,7 @@ export const useAppStore = defineStore('app', () => {
             }
           }
           searchEngines = createdEngines
-        } catch (err) {
+        } catch (_err) {
           console.warn('Failed to initialize default search engines, using local defaults')
           searchEngines = defaultSearchEngines
         }
@@ -329,7 +329,7 @@ export const useAppStore = defineStore('app', () => {
             ...settings.value.search,
             engines: searchEngines.length > 0 ? searchEngines : defaultSearchEngines,
           }
-        } catch (err) {
+        } catch (_err) {
           console.warn('Failed to load search engines, using defaults')
           settings.value.search = {
             ...settings.value.search,
@@ -362,9 +362,6 @@ export const useAppStore = defineStore('app', () => {
         // 如果没有当前搜索引擎，设置为默认搜索引擎
         currentSearchEngine.value = defaultSearchEngine.value
       }
-
-      console.log('Settings updated successfully:', updatedSettings)
-      console.log('Updated search engines:', settings.value.search.engines)
     } catch (err) {
       handleError(err, 'Error updating settings')
       throw err
@@ -466,7 +463,6 @@ export const useAppStore = defineStore('app', () => {
         currentSearchEngine.value = newEngine
       }
 
-      console.log('Search engine added successfully:', newEngine)
       return newEngine
     } catch (err) {
       handleError(err, 'Error adding search engine')

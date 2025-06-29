@@ -195,7 +195,7 @@
                 </div>
               </div>
 
-              <button @click="showAddEngineModal = true" class="btn-secondary btn-full-width">
+              <button @click="openAddEngineModal" class="btn-secondary btn-full-width">
                 + 添加搜索引擎
               </button>
             </div>
@@ -344,7 +344,7 @@
 <script setup lang="ts">
 import { ref, watch, computed } from 'vue'
 import { useAppStore } from '@/stores/app'
-import type { AppSettings, SearchEngine } from '@/types'
+import type { AppSettings } from '@/types'
 
 const store = useAppStore()
 const fileInput = ref<HTMLInputElement>()
@@ -355,6 +355,7 @@ const uploadedImageName = ref<string>('')
 // 搜索引擎编辑相关状态
 const showAddEngineModal = ref(false)
 const editingEngineIndex = ref(-1)
+const isEditingEngine = ref(false) // 标记是否正在编辑搜索引擎
 const engineForm = ref({
   name: '',
   url: '',
@@ -397,7 +398,8 @@ const localSettings = ref<AppSettings>({
 watch(
   () => store.settings,
   (settings) => {
-    if (settings) {
+    if (settings && !isEditingEngine.value) {
+      // 只有在不编辑搜索引擎时才更新本地设置
       // 深度克隆设置，确保搜索引擎数据正确同步
       const clonedSettings = JSON.parse(JSON.stringify(settings))
 
@@ -456,15 +458,20 @@ const updateBackgroundType = () => {
 }
 
 // 保存设置
-const saveSettings = () => {
+const saveSettings = async () => {
   console.log('Saving settings:', localSettings.value)
   console.log('Search engines:', localSettings.value.search.engines)
   console.log('Default engine ID:', localSettings.value.search.defaultEngineId)
 
-  store.updateSettings(localSettings.value)
-  store.closeSettingsModal()
+  try {
+    await store.updateSettings(localSettings.value)
+    store.closeSettingsModal()
 
-  console.log('Settings saved. Current search engine:', store.currentSearchEngine)
+    console.log('Settings saved successfully. Current search engine:', store.currentSearchEngine)
+  } catch (error) {
+    console.error('Failed to save settings:', error)
+    alert('保存设置失败，请重试')
+  }
 }
 
 // 取消设置，恢复原始设置
@@ -564,10 +571,17 @@ const isEngineFormValid = computed(() => {
   )
 })
 
+// 打开添加搜索引擎模态框
+const openAddEngineModal = () => {
+  isEditingEngine.value = true
+  showAddEngineModal.value = true
+}
+
 // 关闭搜索引擎模态框
 const closeEngineModal = () => {
   showAddEngineModal.value = false
   editingEngineIndex.value = -1
+  isEditingEngine.value = false
   engineForm.value = {
     name: '',
     url: '',
@@ -624,12 +638,12 @@ const saveEngine = async () => {
   if (!isEngineFormValid.value) return
 
   try {
-    let engine: SearchEngine
+    isEditingEngine.value = true // 开始编辑
 
     if (editingEngineIndex.value === -1) {
       // 添加新搜索引擎
       if (engineForm.value.iconFile) {
-        engine = await store.addSearchEngineWithIcon(
+        await store.addSearchEngineWithIcon(
           {
             name: engineForm.value.name,
             url: engineForm.value.url,
@@ -639,21 +653,19 @@ const saveEngine = async () => {
           engineForm.value.iconFile,
         )
       } else {
-        engine = await store.addSearchEngine({
+        await store.addSearchEngine({
           name: engineForm.value.name,
           url: engineForm.value.url,
           placeholder: engineForm.value.placeholder,
           isDefault: engineForm.value.isDefault,
         })
       }
-
-      localSettings.value.search.engines.push(engine)
     } else {
       // 更新现有搜索引擎
       const existingEngine = localSettings.value.search.engines[editingEngineIndex.value]
 
       if (engineForm.value.iconFile) {
-        engine = await store.updateSearchEngineWithIcon(
+        await store.updateSearchEngineWithIcon(
           existingEngine.id,
           {
             name: engineForm.value.name,
@@ -664,22 +676,30 @@ const saveEngine = async () => {
           engineForm.value.iconFile,
         )
       } else {
-        engine = await store.updateSearchEngine(existingEngine.id, {
+        await store.updateSearchEngine(existingEngine.id, {
           name: engineForm.value.name,
           url: engineForm.value.url,
           placeholder: engineForm.value.placeholder,
           isDefault: engineForm.value.isDefault,
         })
       }
-
-      localSettings.value.search.engines[editingEngineIndex.value] = engine
     }
+
+    // 在 store 操作完成后，同步更新本地设置
+    localSettings.value.search.engines = [...store.settings.search.engines]
+
+    console.log('搜索引擎保存成功，最新数据:', {
+      store: store.settings.search.engines,
+      local: localSettings.value.search.engines,
+    })
 
     closeEngineModal()
     alert(editingEngineIndex.value === -1 ? '搜索引擎添加成功！' : '搜索引擎更新成功！')
   } catch (error) {
     console.error('Failed to save search engine:', error)
     alert('保存搜索引擎失败，请重试')
+  } finally {
+    isEditingEngine.value = false // 结束编辑
   }
 }
 
@@ -687,6 +707,7 @@ const editSearchEngine = (index: number) => {
   const engine = localSettings.value.search.engines[index]
   if (!engine) return
 
+  isEditingEngine.value = true
   editingEngineIndex.value = index
   engineForm.value = {
     name: engine.name,
@@ -710,22 +731,27 @@ const removeSearchEngine = async (index: number) => {
   }
 
   try {
+    isEditingEngine.value = true // 开始编辑
+
     await store.deleteSearchEngine(engine.id)
 
-    // 从本地设置中移除
-    localSettings.value.search.engines.splice(index, 1)
+    // 在 store 操作完成后，同步更新本地设置
+    localSettings.value.search.engines = [...store.settings.search.engines]
 
-    // 如果删除的是默认搜索引擎，设置第一个为默认
-    if (engine.id === localSettings.value.search.defaultEngineId) {
-      if (localSettings.value.search.engines.length > 0) {
-        localSettings.value.search.defaultEngineId = localSettings.value.search.engines[0].id
-      }
-    }
+    // 同步默认搜索引擎ID
+    localSettings.value.search.defaultEngineId = store.settings.search.defaultEngineId
+
+    console.log('搜索引擎删除成功，最新数据:', {
+      store: store.settings.search.engines,
+      local: localSettings.value.search.engines,
+    })
 
     alert('搜索引擎删除成功！')
   } catch (error) {
     console.error('Failed to delete search engine:', error)
     alert('删除搜索引擎失败，请重试')
+  } finally {
+    isEditingEngine.value = false // 结束编辑
   }
 }
 </script>

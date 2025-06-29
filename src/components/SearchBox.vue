@@ -118,16 +118,18 @@ const showSiteSearch = ref(false)
 // 本地搜索查询，不影响主页面的网站显示
 const localSearchQuery = ref('')
 
-// 当前搜索引擎 - 使用更健壮的逻辑
+// 当前搜索引擎 - 确保使用最新的数据
 const currentEngine = computed(() => {
-  // 优先使用 store.currentSearchEngine
+  // 优先使用 store.currentSearchEngine，但要确保数据是最新的
   if (store.currentSearchEngine) {
-    // 验证当前搜索引擎是否在引擎列表中
-    const isValidEngine = store.settings.search.engines.some(
+    // 从最新的引擎列表中查找对应的引擎，确保数据同步
+    const latestEngineData = store.settings.search.engines.find(
       (engine) => engine.id === store.currentSearchEngine?.id,
     )
-    if (isValidEngine) {
-      return store.currentSearchEngine
+
+    if (latestEngineData) {
+      // 返回最新的引擎数据，包含最新的图标
+      return latestEngineData
     }
   }
 

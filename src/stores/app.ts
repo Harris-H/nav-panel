@@ -344,8 +344,24 @@ export const useAppStore = defineStore('app', () => {
         settings.value.search.defaultEngineId = settings.value.search.engines[0]?.id || 'google'
       }
 
-      // 更新当前搜索引擎
-      currentSearchEngine.value = defaultSearchEngine.value
+      // 只有在当前搜索引擎无效时才更新
+      if (currentSearchEngine.value) {
+        // 检查当前搜索引擎是否还在引擎列表中
+        const currentEngineStillExists = settings.value.search.engines.find(
+          (engine) => engine.id === currentSearchEngine.value?.id,
+        )
+
+        if (currentEngineStillExists) {
+          // 如果当前搜索引擎仍然存在，更新为最新数据
+          currentSearchEngine.value = currentEngineStillExists
+        } else {
+          // 如果当前搜索引擎已被删除，切换到默认搜索引擎
+          currentSearchEngine.value = defaultSearchEngine.value
+        }
+      } else {
+        // 如果没有当前搜索引擎，设置为默认搜索引擎
+        currentSearchEngine.value = defaultSearchEngine.value
+      }
 
       console.log('Settings updated successfully:', updatedSettings)
       console.log('Updated search engines:', settings.value.search.engines)

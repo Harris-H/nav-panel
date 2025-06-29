@@ -279,7 +279,14 @@
 
           <div class="form-group">
             <label>搜索引擎图标</label>
-            <div class="icon-upload-area">
+            <div
+              class="icon-upload-area"
+              :class="{ 'drag-over': isDragOver }"
+              @dragenter="handleDragEnter"
+              @dragover="handleDragOver"
+              @dragleave="handleDragLeave"
+              @drop="handleDrop"
+            >
               <div class="icon-preview">
                 <img
                   v-if="engineForm.iconPreview"
@@ -294,7 +301,7 @@
 
               <div class="icon-controls">
                 <button @click="selectIconFile" class="btn-secondary" type="button">
-                  📁 选择文件
+                  📁 选择或拖拽文件
                 </button>
                 <button
                   v-if="engineForm.iconPreview"
@@ -312,8 +319,12 @@
                   style="display: none"
                 />
               </div>
+
+              <div v-if="isDragOver" class="drag-overlay">
+                <div class="drag-text">📁 释放文件上传</div>
+              </div>
             </div>
-            <small>支持 PNG、JPG、GIF、WebP、SVG 格式，最大 2MB</small>
+            <small>支持 PNG、JPG、GIF、WebP、SVG 格式，最大 2MB，支持拖拽上传</small>
           </div>
 
           <div class="form-group">
@@ -356,6 +367,7 @@ const uploadedImageName = ref<string>('')
 const showAddEngineModal = ref(false)
 const editingEngineIndex = ref(-1)
 const isEditingEngine = ref(false) // 标记是否正在编辑搜索引擎
+const isDragOver = ref(false) // 拖拽状态
 const engineForm = ref({
   name: '',
   url: '',
@@ -363,6 +375,7 @@ const engineForm = ref({
   isDefault: false,
   iconFile: null as File | null,
   iconPreview: '' as string,
+  iconCleared: false, // 标记图标是否被明确清除
 })
 
 // 保存原始设置用于取消操作
@@ -571,6 +584,7 @@ const closeEngineModal = () => {
   showAddEngineModal.value = false
   editingEngineIndex.value = -1
   isEditingEngine.value = false
+  isDragOver.value = false // 重置拖拽状态
   engineForm.value = {
     name: '',
     url: '',
@@ -578,6 +592,7 @@ const closeEngineModal = () => {
     isDefault: false,
     iconFile: null,
     iconPreview: '',
+    iconCleared: false,
   }
 }
 
@@ -604,6 +619,7 @@ const handleIconFileChange = (event: Event) => {
   }
 
   engineForm.value.iconFile = file
+  engineForm.value.iconCleared = false // 重置清除标记
 
   // 创建预览
   const reader = new FileReader()
@@ -617,8 +633,67 @@ const handleIconFileChange = (event: Event) => {
 const clearIcon = () => {
   engineForm.value.iconFile = null
   engineForm.value.iconPreview = ''
+  engineForm.value.iconCleared = true // 标记图标被明确清除
   if (iconFileInput.value) {
     iconFileInput.value.value = ''
+  }
+}
+
+// 拖拽处理方法
+const handleDragEnter = (e: DragEvent) => {
+  e.preventDefault()
+  e.stopPropagation()
+  isDragOver.value = true
+}
+
+const handleDragOver = (e: DragEvent) => {
+  e.preventDefault()
+  e.stopPropagation()
+}
+
+const handleDragLeave = (e: DragEvent) => {
+  e.preventDefault()
+  e.stopPropagation()
+
+  // 只有当鼠标真正离开拖拽区域时才清除状态
+  const target = e.currentTarget as HTMLElement
+  const related = e.relatedTarget as HTMLElement
+  if (!target.contains(related)) {
+    isDragOver.value = false
+  }
+}
+
+const handleDrop = (e: DragEvent) => {
+  e.preventDefault()
+  e.stopPropagation()
+  isDragOver.value = false
+
+  const files = e.dataTransfer?.files
+  if (files && files.length > 0) {
+    const file = files[0]
+
+    // 检查文件类型
+    if (!file.type.startsWith('image/')) {
+      alert('请选择图片文件！')
+      return
+    }
+
+    // 检查文件大小（限制2MB）
+    if (file.size > 2 * 1024 * 1024) {
+      alert('图片文件不能超过2MB！')
+      return
+    }
+
+    // 处理文件
+    engineForm.value.iconFile = file
+    engineForm.value.iconCleared = false // 重置清除标记
+
+    // 创建预览
+    const reader = new FileReader()
+    reader.onload = (e) => {
+      engineForm.value.iconPreview = e.target?.result as string
+    }
+    reader.readAsDataURL(file)
   }
 }
 
@@ -654,6 +729,7 @@ const saveEngine = async () => {
       const existingEngine = localSettings.value.search.engines[editingEngineIndex.value]
 
       if (engineForm.value.iconFile) {
+        // 上传新图标
         await store.updateSearchEngineWithIcon(
           existingEngine.id,
           {
@@ -664,7 +740,17 @@ const saveEngine = async () => {
           },
           engineForm.value.iconFile,
         )
+      } else if (engineForm.value.iconCleared) {
+        // 清除图标
+        await store.updateSearchEngine(existingEngine.id, {
+          name: engineForm.value.name,
+          url: engineForm.value.url,
+          placeholder: engineForm.value.placeholder,
+          isDefault: engineForm.value.isDefault,
+          icon: '', // 使用空字符串来表示清除图标
+        })
       } else {
+        // 保持原图标不变
         await store.updateSearchEngine(existingEngine.id, {
           name: engineForm.value.name,
           url: engineForm.value.url,
@@ -700,6 +786,7 @@ const editSearchEngine = (index: number) => {
     isDefault: engine.isDefault || false,
     iconFile: null,
     iconPreview: engine.icon || '',
+    iconCleared: false,
   }
 }
 
@@ -1100,6 +1187,7 @@ const removeSearchEngine = async (index: number) => {
 }
 
 .icon-upload-area {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 16px;
@@ -1107,6 +1195,44 @@ const removeSearchEngine = async (index: number) => {
   border: 2px dashed #ddd;
   border-radius: 8px;
   background: #f9f9f9;
+  transition: all 0.3s ease;
+  cursor: pointer;
+}
+
+.icon-upload-area:hover {
+  border-color: #667eea;
+  background: #f0f2ff;
+}
+
+.icon-upload-area.drag-over {
+  border-color: #667eea;
+  background: #f0f2ff;
+  border-style: solid;
+  box-shadow: 0 0 0 4px rgba(102, 126, 234, 0.1);
+}
+
+.drag-overlay {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background: rgba(102, 126, 234, 0.1);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 1;
+}
+
+.drag-text {
+  background: rgba(102, 126, 234, 0.9);
+  color: white;
+  padding: 8px 16px;
+  border-radius: 20px;
+  font-size: 14px;
+  font-weight: 500;
+  box-shadow: 0 2px 8px rgba(102, 126, 234, 0.3);
 }
 
 .icon-preview {

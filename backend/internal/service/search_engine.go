@@ -64,7 +64,12 @@ func (s *SearchEngineService) Update(id string, req *model.UpdateSearchEngineReq
 		updates["url"] = *req.URL
 	}
 	if req.Icon != nil {
-		updates["icon"] = *req.Icon
+		if *req.Icon == "" {
+			// 空字符串表示清除图标，设置为 NULL
+			updates["icon"] = nil
+		} else {
+			updates["icon"] = *req.Icon
+		}
 	}
 	if req.Placeholder != nil {
 		updates["placeholder"] = *req.Placeholder

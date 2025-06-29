@@ -1,17 +1,15 @@
 package service
 
 import (
-	"encoding/base64"
 	"encoding/json"
 	"nav-panel-backend/internal/model"
 	"nav-panel-backend/internal/repository"
 )
 
 type SettingsService struct {
-	settingsRepo        *repository.SettingsRepository
-	websiteRepo         *repository.WebsiteRepository
-	searchEngineRepo    *repository.SearchEngineRepository
-	searchEngineService *SearchEngineService
+	settingsRepo     *repository.SettingsRepository
+	websiteRepo      *repository.WebsiteRepository
+	searchEngineRepo *repository.SearchEngineRepository
 }
 
 func NewSettingsService(settingsRepo *repository.SettingsRepository) *SettingsService {
@@ -26,10 +24,7 @@ func (s *SettingsService) SetRepositories(websiteRepo *repository.WebsiteReposit
 	s.searchEngineRepo = searchEngineRepo
 }
 
-// SetSearchEngineService 设置搜索引擎服务依赖
-func (s *SettingsService) SetSearchEngineService(searchEngineService *SearchEngineService) {
-	s.searchEngineService = searchEngineService
-}
+
 
 func (s *SettingsService) Get() (*model.AppSettingsResponse, error) {
 	// 获取设置数据
@@ -38,23 +33,10 @@ func (s *SettingsService) Get() (*model.AppSettingsResponse, error) {
 		return nil, err
 	}
 
-	// 获取搜索引擎数据 - 使用 SearchEngineService 确保图标数据正确处理
-	var searchEngines []model.SearchEngine
-	if s.searchEngineService != nil {
-		searchEngines, err = s.searchEngineService.GetAll()
-		if err != nil {
-			return nil, err
-		}
-	} else {
-		// 备选方案：直接使用仓库，但需要手动处理图标数据
-		searchEngines, err = s.searchEngineRepo.GetAll()
-		if err != nil {
-			return nil, err
-		}
-		// 手动处理图标数据
-		for i := range searchEngines {
-			s.processIconData(&searchEngines[i])
-		}
+	// 获取搜索引擎数据
+	searchEngines, err := s.searchEngineRepo.GetAll()
+	if err != nil {
+		return nil, err
 	}
 
 	// 解析JSON配置
@@ -240,18 +222,7 @@ func (s *SettingsService) Import(data *model.ImportData) error {
 	return nil
 }
 
-// processIconData 处理图标数据，将二进制数据转换为前端可用的格式
-func (s *SettingsService) processIconData(engine *model.SearchEngine) {
-	if len(engine.IconData) > 0 && engine.IconType != nil {
-		// 将二进制数据转换为base64字符串
-		base64Data := base64.StdEncoding.EncodeToString(engine.IconData)
-		dataURL := "data:" + *engine.IconType + ";base64," + base64Data
-		engine.Icon = &dataURL
-		// 清空二进制数据，减少传输大小
-		engine.IconData = nil
-		engine.IconType = nil
-	}
-}
+
 
 func (s *SettingsService) Reset() error {
 	return s.settingsRepo.Reset()

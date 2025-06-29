@@ -36,8 +36,6 @@ func main() {
 	
 	// 为设置服务设置其他仓库依赖（用于导入导出功能）
 	settingsService.SetRepositories(websiteRepo, searchEngineRepo)
-	// 设置搜索引擎服务依赖（用于正确处理图标数据）
-	settingsService.SetSearchEngineService(searchEngineService)
 
 	// 初始化处理器层
 	websiteHandler := handler.NewWebsiteHandler(websiteService)

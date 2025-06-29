@@ -100,7 +100,7 @@ func (h *SearchEngineHandler) CreateWithIcon(c *gin.Context) {
 		// 转换为base64
 		base64Data := base64.StdEncoding.EncodeToString(data)
 		dataURL := fmt.Sprintf("data:%s;base64,%s", contentType, base64Data)
-		req.IconData = &dataURL
+		req.Icon = &dataURL
 	}
 
 	// 处理isDefault字段
@@ -201,7 +201,7 @@ func (h *SearchEngineHandler) UpdateWithIcon(c *gin.Context) {
 		// 转换为base64
 		base64Data := base64.StdEncoding.EncodeToString(data)
 		dataURL := fmt.Sprintf("data:%s;base64,%s", contentType, base64Data)
-		req.IconData = &dataURL
+		req.Icon = &dataURL
 	}
 
 	// 处理isDefault字段

@@ -63,8 +63,7 @@ func Migrate(db *sql.DB) error {
 		id TEXT PRIMARY KEY,
 		name TEXT NOT NULL,
 		url TEXT NOT NULL,
-		icon_data BLOB,
-		icon_type TEXT,
+		icon TEXT,
 		placeholder TEXT,
 		is_default BOOLEAN DEFAULT FALSE
 	);`
@@ -74,19 +73,12 @@ func Migrate(db *sql.DB) error {
 	}
 
 	// 检查并添加新字段（向后兼容）
-	if err := addColumnIfNotExists(db, "search_engines", "icon_data", "BLOB"); err != nil {
-		return err
-	}
-	if err := addColumnIfNotExists(db, "search_engines", "icon_type", "TEXT"); err != nil {
+	if err := addColumnIfNotExists(db, "search_engines", "icon", "TEXT"); err != nil {
 		return err
 	}
 	if err := addColumnIfNotExists(db, "websites", "sort_order", "INTEGER DEFAULT 0"); err != nil {
 		return err
 	}
-
-	// 删除旧的icon字段（如果存在）
-	// SQLite不支持直接删除列，所以我们跳过这个操作
-	// 旧的icon字段如果存在也不会影响功能
 
 	// 创建应用设置表
 	settingsSQL := `

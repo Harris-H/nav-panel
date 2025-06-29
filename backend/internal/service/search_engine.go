@@ -1,11 +1,9 @@
 package service
 
 import (
-	"encoding/base64"
 	"fmt"
 	"nav-panel-backend/internal/model"
 	"nav-panel-backend/internal/repository"
-	"strings"
 )
 
 type SearchEngineService struct {
@@ -17,41 +15,14 @@ func NewSearchEngineService(repo *repository.SearchEngineRepository) *SearchEngi
 }
 
 func (s *SearchEngineService) GetAll() ([]model.SearchEngine, error) {
-	engines, err := s.repo.GetAll()
-	if err != nil {
-		return nil, err
-	}
-
-	// 为每个搜索引擎处理图标数据
-	for i := range engines {
-		s.processIconData(&engines[i])
-	}
-
-	return engines, nil
+	return s.repo.GetAll()
 }
 
 func (s *SearchEngineService) GetByID(id string) (*model.SearchEngine, error) {
-	engine, err := s.repo.GetByID(id)
-	if err != nil {
-		return nil, err
-	}
-
-	s.processIconData(engine)
-	return engine, nil
+	return s.repo.GetByID(id)
 }
 
-// processIconData 处理图标数据，将二进制数据转换为前端可用的格式
-func (s *SearchEngineService) processIconData(engine *model.SearchEngine) {
-	if len(engine.IconData) > 0 && engine.IconType != nil {
-		// 将二进制数据转换为base64字符串
-		base64Data := base64.StdEncoding.EncodeToString(engine.IconData)
-		dataURL := "data:" + *engine.IconType + ";base64," + base64Data
-		engine.Icon = &dataURL
-		// 清空二进制数据，减少传输大小
-		engine.IconData = nil
-		engine.IconType = nil
-	}
-}
+
 
 func (s *SearchEngineService) Create(req *model.CreateSearchEngineRequest) (*model.SearchEngine, error) {
 	// 检查是否已存在相同ID的搜索引擎
@@ -64,18 +35,9 @@ func (s *SearchEngineService) Create(req *model.CreateSearchEngineRequest) (*mod
 		ID:          req.ID,
 		Name:        req.Name,
 		URL:         req.URL,
+		Icon:        req.Icon,
 		Placeholder: req.Placeholder,
 		IsDefault:   req.IsDefault != nil && *req.IsDefault,
-	}
-
-	// 处理base64图标数据
-	if req.IconData != nil && *req.IconData != "" {
-		iconData, iconType, err := s.parseBase64Icon(*req.IconData)
-		if err != nil {
-			return nil, fmt.Errorf("invalid icon data: %w", err)
-		}
-		engine.IconData = iconData
-		engine.IconType = iconType
 	}
 
 	err := s.repo.Create(engine)
@@ -83,8 +45,6 @@ func (s *SearchEngineService) Create(req *model.CreateSearchEngineRequest) (*mod
 		return nil, err
 	}
 
-	// 返回时处理图标数据
-	s.processIconData(engine)
 	return engine, nil
 }
 
@@ -103,13 +63,8 @@ func (s *SearchEngineService) Update(id string, req *model.UpdateSearchEngineReq
 	if req.URL != nil {
 		updates["url"] = *req.URL
 	}
-	if req.IconData != nil && *req.IconData != "" {
-		iconData, iconType, err := s.parseBase64Icon(*req.IconData)
-		if err != nil {
-			return nil, fmt.Errorf("invalid icon data: %w", err)
-		}
-		updates["icon_data"] = iconData
-		updates["icon_type"] = iconType
+	if req.Icon != nil {
+		updates["icon"] = *req.Icon
 	}
 	if req.Placeholder != nil {
 		updates["placeholder"] = *req.Placeholder
@@ -128,38 +83,7 @@ func (s *SearchEngineService) Update(id string, req *model.UpdateSearchEngineReq
 	return s.GetByID(id)
 }
 
-// parseBase64Icon 解析base64图标数据
-func (s *SearchEngineService) parseBase64Icon(base64Data string) ([]byte, *string, error) {
-	// 检查是否是data URL格式
-	if strings.HasPrefix(base64Data, "data:") {
-		parts := strings.Split(base64Data, ",")
-		if len(parts) != 2 {
-			return nil, nil, fmt.Errorf("invalid data URL format")
-		}
-		
-		// 提取MIME类型
-		header := parts[0]
-		mimeType := strings.TrimPrefix(header, "data:")
-		mimeType = strings.TrimSuffix(mimeType, ";base64")
-		
-		// 解码base64数据
-		data, err := base64.StdEncoding.DecodeString(parts[1])
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to decode base64 data: %w", err)
-		}
-		
-		return data, &mimeType, nil
-	} else {
-		// 直接是base64数据，假设为PNG格式
-		data, err := base64.StdEncoding.DecodeString(base64Data)
-		if err != nil {
-			return nil, nil, fmt.Errorf("failed to decode base64 data: %w", err)
-		}
-		
-		mimeType := "image/png"
-		return data, &mimeType, nil
-	}
-}
+
 
 func (s *SearchEngineService) Delete(id string) error {
 	// 检查搜索引擎是否存在

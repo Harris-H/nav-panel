@@ -15,7 +15,7 @@ func NewSearchEngineRepository(db *sql.DB) *SearchEngineRepository {
 
 func (r *SearchEngineRepository) GetAll() ([]model.SearchEngine, error) {
 	query := `
-		SELECT id, name, url, icon_data, icon_type, placeholder, is_default 
+		SELECT id, name, url, icon, placeholder, is_default 
 		FROM search_engines 
 		ORDER BY is_default DESC, name ASC
 	`
@@ -29,7 +29,7 @@ func (r *SearchEngineRepository) GetAll() ([]model.SearchEngine, error) {
 	var engines []model.SearchEngine
 	for rows.Next() {
 		var e model.SearchEngine
-		err := rows.Scan(&e.ID, &e.Name, &e.URL, &e.IconData, &e.IconType, &e.Placeholder, &e.IsDefault)
+		err := rows.Scan(&e.ID, &e.Name, &e.URL, &e.Icon, &e.Placeholder, &e.IsDefault)
 		if err != nil {
 			return nil, err
 		}
@@ -41,13 +41,13 @@ func (r *SearchEngineRepository) GetAll() ([]model.SearchEngine, error) {
 
 func (r *SearchEngineRepository) GetByID(id string) (*model.SearchEngine, error) {
 	query := `
-		SELECT id, name, url, icon_data, icon_type, placeholder, is_default 
+		SELECT id, name, url, icon, placeholder, is_default 
 		FROM search_engines 
 		WHERE id = ?
 	`
 	
 	var e model.SearchEngine
-	err := r.db.QueryRow(query, id).Scan(&e.ID, &e.Name, &e.URL, &e.IconData, &e.IconType, &e.Placeholder, &e.IsDefault)
+	err := r.db.QueryRow(query, id).Scan(&e.ID, &e.Name, &e.URL, &e.Icon, &e.Placeholder, &e.IsDefault)
 	if err != nil {
 		return nil, err
 	}
@@ -64,11 +64,11 @@ func (r *SearchEngineRepository) Create(engine *model.SearchEngine) error {
 	}
 
 	query := `
-		INSERT INTO search_engines (id, name, url, icon_data, icon_type, placeholder, is_default)
-		VALUES (?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO search_engines (id, name, url, icon, placeholder, is_default)
+		VALUES (?, ?, ?, ?, ?, ?)
 	`
 	
-	_, err := r.db.Exec(query, engine.ID, engine.Name, engine.URL, engine.IconData, engine.IconType, engine.Placeholder, engine.IsDefault)
+	_, err := r.db.Exec(query, engine.ID, engine.Name, engine.URL, engine.Icon, engine.Placeholder, engine.IsDefault)
 	return err
 }
 

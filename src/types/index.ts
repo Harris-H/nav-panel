@@ -16,9 +16,7 @@ export interface SearchEngine {
   id: string
   name: string
   url: string
-  icon?: string // 临时字段，用于接收后端返回的DataURL
-  iconData?: Uint8Array // 图标二进制数据
-  iconType?: string // 图标MIME类型
+  icon?: string // 图标DataURL
   placeholder?: string
   isDefault?: boolean
 }

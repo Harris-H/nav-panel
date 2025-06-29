@@ -51,6 +51,16 @@ class ApiClient {
     }
   }
 
+  // 将文件转换为DataURL
+  private fileToDataURL(file: File): Promise<string> {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader()
+      reader.onload = () => resolve(reader.result as string)
+      reader.onerror = reject
+      reader.readAsDataURL(file)
+    })
+  }
+
   // 网站相关API
   async getWebsites(): Promise<Website[]> {
     return this.request<Website[]>('/websites')
@@ -100,28 +110,26 @@ class ApiClient {
     engine: { name: string; url: string; placeholder?: string; isDefault?: boolean },
     iconFile?: File,
   ): Promise<SearchEngine> {
-    const formData = new FormData()
-
     // 生成ID
     const id = engine.name.toLowerCase().replace(/[^a-z0-9]/g, '') + '_' + Date.now()
 
-    formData.append('id', id)
-    formData.append('name', engine.name)
-    formData.append('url', engine.url)
-
-    if (engine.placeholder) {
-      formData.append('placeholder', engine.placeholder)
-    }
-
-    if (engine.isDefault) {
-      formData.append('isDefault', 'true')
-    }
-
+    let iconDataURL: string | undefined
     if (iconFile) {
-      formData.append('icon', iconFile)
+      // 将文件转换为DataURL
+      iconDataURL = await this.fileToDataURL(iconFile)
     }
 
-    return this.requestWithFile<SearchEngine>('/search-engines/with-icon', formData)
+    return this.request<SearchEngine>('/search-engines', {
+      method: 'POST',
+      body: JSON.stringify({
+        id,
+        name: engine.name,
+        url: engine.url,
+        icon: iconDataURL,
+        placeholder: engine.placeholder,
+        isDefault: engine.isDefault,
+      }),
+    })
   }
 
   async updateSearchEngine(id: string, updates: Partial<SearchEngine>): Promise<SearchEngine> {
@@ -137,35 +145,19 @@ class ApiClient {
     updates: { name?: string; url?: string; placeholder?: string; isDefault?: boolean },
     iconFile?: File,
   ): Promise<SearchEngine> {
-    const formData = new FormData()
-
-    if (updates.name) formData.append('name', updates.name)
-    if (updates.url) formData.append('url', updates.url)
-    if (updates.placeholder) formData.append('placeholder', updates.placeholder)
-    if (updates.isDefault !== undefined) formData.append('isDefault', updates.isDefault.toString())
-
+    let iconDataURL: string | undefined
     if (iconFile) {
-      formData.append('icon', iconFile)
+      // 将文件转换为DataURL
+      iconDataURL = await this.fileToDataURL(iconFile)
     }
 
-    const url = `${API_BASE_URL}/search-engines/${id}/with-icon`
-
-    try {
-      const response = await fetch(url, {
-        method: 'PUT',
-        body: formData,
-      })
-
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`)
-      }
-
-      const data = await response.json()
-      return data.data || data
-    } catch (error) {
-      console.error(`API request failed: /search-engines/${id}/with-icon`, error)
-      throw error
-    }
+    return this.request<SearchEngine>(`/search-engines/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        ...updates,
+        icon: iconDataURL,
+      }),
+    })
   }
 
   async deleteSearchEngine(id: string): Promise<void> {

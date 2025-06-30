@@ -2,10 +2,12 @@ package main
 
 import (
 	"log"
+	"net/http"
 	"nav-panel-backend/internal/database"
 	"nav-panel-backend/internal/handler"
 	"nav-panel-backend/internal/repository"
 	"nav-panel-backend/internal/service"
+	"time"
 
 	"github.com/gin-contrib/cors"
 	"github.com/gin-gonic/gin"
@@ -55,6 +57,15 @@ func main() {
 	// 注册路由
 	api := r.Group("/api")
 	{
+		// 健康检查接口
+		api.GET("/ping", func(c *gin.Context) {
+			c.JSON(http.StatusOK, gin.H{
+				"status":    "ok",
+				"message":   "service is healthy",
+				"timestamp": time.Now().Unix(),
+			})
+		})
+
 		// 网站路由
 		websites := api.Group("/websites")
 		{

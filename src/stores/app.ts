@@ -1,5 +1,6 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
+import { ElNotification, ElMessageBox } from 'element-plus'
 import type { Website, AppSettings, SearchEngine } from '@/types'
 import { api } from '@/utils/api'
 
@@ -154,7 +155,7 @@ export const useAppStore = defineStore('app', () => {
             }
           }
           searchEngines = createdEngines
-        } catch (_err) {
+        } catch {
           console.warn('Failed to initialize default search engines, using local defaults')
           searchEngines = defaultSearchEngines
         }
@@ -329,7 +330,7 @@ export const useAppStore = defineStore('app', () => {
             ...settings.value.search,
             engines: searchEngines.length > 0 ? searchEngines : defaultSearchEngines,
           }
-        } catch (_err) {
+        } catch {
           console.warn('Failed to load search engines, using defaults')
           settings.value.search = {
             ...settings.value.search,
@@ -655,6 +656,46 @@ export const useAppStore = defineStore('app', () => {
     }
   }
 
+  // 通知方法
+  const showNotification = (
+    message: string,
+    type: 'success' | 'error' | 'warning' | 'info' = 'info',
+  ) => {
+    ElNotification({
+      title:
+        type === 'success'
+          ? '成功'
+          : type === 'error'
+            ? '错误'
+            : type === 'warning'
+              ? '警告'
+              : '提示',
+      message,
+      type,
+      duration: 4000,
+      position: 'top-right',
+    })
+  }
+
+  const showSuccess = (message: string) => showNotification(message, 'success')
+  const showError = (message: string) => showNotification(message, 'error')
+  const showWarning = (message: string) => showNotification(message, 'warning')
+  const showInfo = (message: string) => showNotification(message, 'info')
+
+  // 确认对话框方法
+  const showConfirm = async (message: string, title: string = '确认') => {
+    try {
+      await ElMessageBox.confirm(message, title, {
+        confirmButtonText: '确定',
+        cancelButtonText: '取消',
+        type: 'warning',
+      })
+      return true
+    } catch {
+      return false
+    }
+  }
+
   return {
     // 状态
     sites,
@@ -697,5 +738,13 @@ export const useAppStore = defineStore('app', () => {
     deleteSearchEngine,
     addSearchEngineWithIcon,
     updateSearchEngineWithIcon,
+
+    // 通知方法
+    showNotification,
+    showSuccess,
+    showError,
+    showWarning,
+    showInfo,
+    showConfirm,
   }
 })

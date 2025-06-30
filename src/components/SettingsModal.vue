@@ -469,10 +469,11 @@ const updateBackgroundType = () => {
 const saveSettings = async () => {
   try {
     await store.updateSettings(localSettings.value)
+    store.showSuccess('设置保存成功！')
     store.closeSettingsModal()
   } catch (error) {
     console.error('Failed to save settings:', error)
-    alert('保存设置失败，请重试')
+    store.showError('保存设置失败，请重试')
   }
 }
 
@@ -509,23 +510,27 @@ const handleFileImport = (event: Event) => {
   if (!file) return
 
   const reader = new FileReader()
-  reader.onload = (e) => {
+  reader.onload = async (e) => {
     try {
       const data = JSON.parse(e.target?.result as string)
       if (data.websites && data.settings) {
-        if (confirm('导入数据将覆盖当前所有数据，确定继续吗？')) {
+        const confirmed = await store.showConfirm(
+          '导入数据将覆盖当前所有数据，确定继续吗？',
+          '导入数据',
+        )
+        if (confirmed) {
           // 更新网站数据
           store.sites.length = 0
           store.sites.push(...data.websites)
           store.updateSettings(data.settings)
           store.loadData() // 重新加载数据
-          alert('数据导入成功！')
+          store.showSuccess('数据导入成功！')
         }
       } else {
-        alert('文件格式不正确！')
+        store.showError('文件格式不正确！')
       }
     } catch {
-      alert('文件解析失败！')
+      store.showError('文件解析失败！')
     }
   }
   reader.readAsText(file)
@@ -537,13 +542,13 @@ const handleBackgroundImageUpload = (event: Event) => {
 
   // 检查文件类型
   if (!file.type.startsWith('image/')) {
-    alert('请选择图片文件！')
+    store.showError('请选择图片文件！')
     return
   }
 
   // 检查文件大小（限制为5MB）
   if (file.size > 5 * 1024 * 1024) {
-    alert('图片文件不能超过5MB！')
+    store.showError('图片文件不能超过5MB！')
     return
   }
 
@@ -556,8 +561,9 @@ const handleBackgroundImageUpload = (event: Event) => {
   reader.readAsDataURL(file)
 }
 
-const resetData = () => {
-  if (confirm('确定要重置所有数据吗？此操作不可恢复！')) {
+const resetData = async () => {
+  const confirmed = await store.showConfirm('确定要重置所有数据吗？此操作不可恢复！', '重置数据')
+  if (confirmed) {
     localStorage.clear()
     location.reload()
   }
@@ -608,13 +614,13 @@ const handleIconFileChange = (event: Event) => {
 
   // 检查文件类型
   if (!file.type.startsWith('image/')) {
-    alert('请选择图片文件！')
+    store.showError('请选择图片文件！')
     return
   }
 
   // 检查文件大小（限制2MB）
   if (file.size > 2 * 1024 * 1024) {
-    alert('图片文件不能超过2MB！')
+    store.showError('图片文件不能超过2MB！')
     return
   }
 
@@ -674,13 +680,13 @@ const handleDrop = (e: DragEvent) => {
 
     // 检查文件类型
     if (!file.type.startsWith('image/')) {
-      alert('请选择图片文件！')
+      store.showError('请选择图片文件！')
       return
     }
 
     // 检查文件大小（限制2MB）
     if (file.size > 2 * 1024 * 1024) {
-      alert('图片文件不能超过2MB！')
+      store.showError('图片文件不能超过2MB！')
       return
     }
 
@@ -764,10 +770,10 @@ const saveEngine = async () => {
     localSettings.value.search.engines = [...store.settings.search.engines]
 
     closeEngineModal()
-    alert(editingEngineIndex.value === -1 ? '搜索引擎添加成功！' : '搜索引擎更新成功！')
+    store.showSuccess(editingEngineIndex.value === -1 ? '搜索引擎添加成功！' : '搜索引擎更新成功！')
   } catch (error) {
     console.error('Failed to save search engine:', error)
-    alert('保存搜索引擎失败，请重试')
+    store.showError('保存搜索引擎失败，请重试')
   } finally {
     isEditingEngine.value = false // 结束编辑
   }
@@ -792,12 +798,16 @@ const editSearchEngine = (index: number) => {
 
 const removeSearchEngine = async (index: number) => {
   if (localSettings.value.search.engines.length <= 1) {
-    alert('至少需要保留一个搜索引擎！')
+    store.showWarning('至少需要保留一个搜索引擎！')
     return
   }
 
   const engine = localSettings.value.search.engines[index]
-  if (!confirm(`确定要删除"${engine.name}"搜索引擎吗？`)) {
+  const confirmed = await store.showConfirm(
+    `确定要删除"${engine.name}"搜索引擎吗？`,
+    '删除搜索引擎',
+  )
+  if (!confirmed) {
     return
   }
 
@@ -812,10 +822,10 @@ const removeSearchEngine = async (index: number) => {
     // 同步默认搜索引擎ID
     localSettings.value.search.defaultEngineId = store.settings.search.defaultEngineId
 
-    alert('搜索引擎删除成功！')
+    store.showSuccess('搜索引擎删除成功！')
   } catch (error) {
     console.error('Failed to delete search engine:', error)
-    alert('删除搜索引擎失败，请重试')
+    store.showError('删除搜索引擎失败，请重试')
   } finally {
     isEditingEngine.value = false // 结束编辑
   }

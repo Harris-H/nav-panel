@@ -1,0 +1,65 @@
+# 数据文件
+data/
+*.db
+*.sqlite
+*.sqlite3
+
+# 开发工具
+.git/
+.gitignore
+*.md
+README.md
+
+# Go 构建缓存
+.cache/
+
+# IDE 和编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 操作系统文件
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# 环境文件
+.env
+.env.*
+
+# Docker 相关
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# 测试和覆盖率
+coverage/
+.coverage
+*.test
+*.prof
+
+# 临时文件
+*.tmp
+*.temp
+tmp/
+temp/
+
+# 日志文件
+*.log
+logs/
+
+# 前端文件（后端构建时不需要）
+node_modules/
+dist/
+src/
+public/
+package*.json
+vite.config.ts
+tsconfig*.json
+eslint.config.ts 

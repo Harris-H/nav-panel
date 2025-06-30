@@ -1,0 +1,67 @@
+# 开发依赖和工具
+node_modules
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 构建输出
+dist
+.nuxt
+.next
+.output
+.vercel
+
+# 环境文件
+.env
+.env.*
+!.env.example
+
+# IDE 和编辑器
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# 操作系统文件
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+README.md
+DEPLOY.md
+TODO.md
+*.md
+
+# Docker 相关
+Dockerfile*
+docker-compose*
+.dockerignore
+
+# 测试和覆盖率
+coverage/
+.coverage
+.pytest_cache/
+.tox/
+
+# 临时文件
+*.tmp
+*.temp
+tmp/
+temp/
+
+# 日志文件
+*.log
+logs/
+
+# 后端文件（前端构建时不需要）
+backend/
+go.mod
+go.sum 

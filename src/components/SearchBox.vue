@@ -118,10 +118,15 @@ const showSiteSearch = ref(false)
 // 本地搜索查询，不影响主页面的网站显示
 const localSearchQuery = ref('')
 
-// 当前搜索引擎 - 确保使用最新的数据
+// 当前搜索引擎 - 确保使用最新的数据且稳定更新
 const currentEngine = computed(() => {
+  // 确保有搜索引擎列表
+  if (!store.settings.search.engines || store.settings.search.engines.length === 0) {
+    return store.defaultSearchEngines[0]
+  }
+
   // 优先使用 store.currentSearchEngine，但要确保数据是最新的
-  if (store.currentSearchEngine) {
+  if (store.currentSearchEngine?.id) {
     // 从最新的引擎列表中查找对应的引擎，确保数据同步
     const latestEngineData = store.settings.search.engines.find(
       (engine) => engine.id === store.currentSearchEngine?.id,
@@ -139,12 +144,7 @@ const currentEngine = computed(() => {
   }
 
   // 最后的备选方案：返回第一个可用的搜索引擎
-  if (store.settings.search.engines.length > 0) {
-    return store.settings.search.engines[0]
-  }
-
-  // 如果都没有，返回内置默认搜索引擎
-  return store.defaultSearchEngines[0]
+  return store.settings.search.engines[0] || store.defaultSearchEngines[0]
 })
 
 const openSite = (url: string) => {
@@ -173,10 +173,13 @@ const handleSearch = () => {
   }
 }
 
-// 选择搜索引擎
+// 选择搜索引擎 - 仅临时切换，不修改默认设置
 const selectSearchEngine = (engineId: string) => {
-  store.setCurrentSearchEngine(engineId)
+  // 立即更新UI状态
   showEngineSelector.value = false
+  // 临时切换当前搜索引擎（不保存到后端）
+  // 如需修改默认搜索引擎，请在设置页面操作
+  store.setCurrentSearchEngine(engineId)
 }
 
 // 过滤网站用于搜索建议 - 使用本地搜索查询

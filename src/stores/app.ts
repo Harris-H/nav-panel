@@ -433,17 +433,30 @@ export const useAppStore = defineStore('app', () => {
     }
   }
 
-  const setCurrentSearchEngine = async (engineId: string) => {
+  // 临时切换当前搜索引擎（仅UI状态，不保存到后端）
+  const setCurrentSearchEngine = (engineId: string) => {
     const engine = settings.value.search.engines.find((e) => e.id === engineId)
     if (engine) {
       currentSearchEngine.value = engine
-      // 同时更新默认搜索引擎设置
+      console.log('Current search engine switched to:', engine.name)
+    }
+  }
+
+  // 设置默认搜索引擎（仅在设置页面使用，会保存到后端）
+  const setDefaultSearchEngine = async (engineId: string) => {
+    const engine = settings.value.search.engines.find((e) => e.id === engineId)
+    if (engine) {
+      // 更新默认搜索引擎设置
       await updateSettings({
         search: {
           ...settings.value.search,
           defaultEngineId: engineId,
         },
       })
+
+      // 同时更新当前搜索引擎
+      currentSearchEngine.value = engine
+      console.log('Default search engine saved:', engine.name)
     }
   }
 
@@ -730,6 +743,7 @@ export const useAppStore = defineStore('app', () => {
     resetSettings,
     performSearch,
     setCurrentSearchEngine,
+    setDefaultSearchEngine,
     exportData,
     importData,
     clearError,

@@ -1,16 +1,20 @@
 import { ref, computed } from 'vue'
 import { defineStore } from 'pinia'
 import { ElNotification, ElMessageBox } from 'element-plus'
-import type { Website, AppSettings, SearchEngine } from '@/types'
+import type { Website, AppSettings, SearchEngine, Group, GroupWithWebsites } from '@/types'
 import { api } from '@/utils/api'
 
 export const useAppStore = defineStore('app', () => {
   // 状态
   const sites = ref<Website[]>([])
+  const groups = ref<Group[]>([])
+  const groupsWithWebsites = ref<GroupWithWebsites[]>([])
   const searchQuery = ref('')
   const isAddCardModalOpen = ref(false)
   const isSettingsModalOpen = ref(false)
+  const isGroupModalOpen = ref(false)
   const editingCard = ref<Website | null>(null)
+  const editingGroup = ref<Group | null>(null)
   const currentSearchEngine = ref<SearchEngine | null>(null)
   const loading = ref(false)
   const error = ref<string | null>(null)
@@ -118,23 +122,36 @@ export const useAppStore = defineStore('app', () => {
       console.log('Loading data from API...')
 
       // 并行加载所有数据
-      const [websitesData, settingsData, searchEnginesData] = await Promise.all([
-        api.getWebsites().catch((err) => {
-          console.warn('Failed to load websites:', err)
-          return []
-        }),
-        api.getSettings().catch((err) => {
-          console.warn('Failed to load settings:', err)
-          return null
-        }),
-        api.getSearchEngines().catch((err) => {
-          console.warn('Failed to load search engines:', err)
-          return []
-        }),
-      ])
+      const [websitesData, settingsData, searchEnginesData, groupsData, groupsWithWebsitesData] =
+        await Promise.all([
+          api.getWebsites().catch((err) => {
+            console.warn('Failed to load websites:', err)
+            return []
+          }),
+          api.getSettings().catch((err) => {
+            console.warn('Failed to load settings:', err)
+            return null
+          }),
+          api.getSearchEngines().catch((err) => {
+            console.warn('Failed to load search engines:', err)
+            return []
+          }),
+          api.getGroups().catch((err) => {
+            console.warn('Failed to load groups:', err)
+            return []
+          }),
+          api.getGroupsWithWebsites().catch((err) => {
+            console.warn('Failed to load groups with websites:', err)
+            return []
+          }),
+        ])
 
       // 设置网站数据
       sites.value = Array.isArray(websitesData) ? websitesData : []
+
+      // 设置分组数据
+      groups.value = Array.isArray(groupsData) ? groupsData : []
+      groupsWithWebsites.value = Array.isArray(groupsWithWebsitesData) ? groupsWithWebsitesData : []
 
       // 处理搜索引擎数据
       let searchEngines = Array.isArray(searchEnginesData) ? searchEnginesData : []
@@ -186,6 +203,7 @@ export const useAppStore = defineStore('app', () => {
       currentSearchEngine.value = defaultSearchEngine.value
 
       console.log('Loaded sites:', sites.value.length)
+      console.log('Loaded groups:', groups.value.length)
       console.log('Loaded search engines:', settings.value.search.engines.length)
       console.log('Loaded settings:', settings.value)
       console.log('Current search engine:', currentSearchEngine.value)
@@ -208,6 +226,10 @@ export const useAppStore = defineStore('app', () => {
       const newSite = await api.createWebsite(site)
       sites.value.push(newSite)
 
+      // 更新 groupsWithWebsites 中的网站数据
+      updateWebsiteInGroups(newSite)
+
+      showSuccess('网站添加成功')
       console.log('Site added successfully:', newSite)
     } catch (err) {
       handleError(err, 'Error adding site')
@@ -228,6 +250,10 @@ export const useAppStore = defineStore('app', () => {
         sites.value[index] = updated
       }
 
+      // 更新 groupsWithWebsites 中的网站数据
+      updateWebsiteInGroups(updated)
+
+      showSuccess('网站更新成功')
       console.log('Site updated successfully:', updated)
     } catch (err) {
       handleError(err, 'Error updating site')
@@ -248,6 +274,12 @@ export const useAppStore = defineStore('app', () => {
         sites.value.splice(index, 1)
       }
 
+      // 从所有分组中移除该网站
+      groupsWithWebsites.value.forEach((group) => {
+        group.websites = group.websites.filter((site) => site.id !== id)
+      })
+
+      showSuccess('网站删除成功')
       console.log('Site deleted successfully:', id)
     } catch (err) {
       handleError(err, 'Error deleting site')
@@ -709,13 +741,205 @@ export const useAppStore = defineStore('app', () => {
     }
   }
 
+  // 更新分组中的网站数据的辅助函数
+  const updateWebsiteInGroups = (updatedSite: Website) => {
+    // 首先从所有分组中移除该网站
+    groupsWithWebsites.value.forEach((group) => {
+      group.websites = group.websites.filter((site) => site.id !== updatedSite.id)
+    })
+
+    // 如果网站有有效的 groupId，将其添加到对应的分组中
+    if (updatedSite.groupId && updatedSite.groupId !== '' && updatedSite.groupId !== null) {
+      const targetGroup = groupsWithWebsites.value.find((group) => group.id === updatedSite.groupId)
+      if (targetGroup) {
+        targetGroup.websites.push(updatedSite)
+        // 按 sortOrder 排序网站
+        targetGroup.websites.sort((a, b) => (a.sortOrder || 0) - (b.sortOrder || 0))
+      }
+    }
+  }
+
+  // 分组相关方法
+  const loadGroups = async () => {
+    try {
+      const [groupsData, groupsWithWebsitesData] = await Promise.all([
+        api.getGroups(),
+        api.getGroupsWithWebsites(),
+      ])
+
+      groups.value = groupsData
+      groupsWithWebsites.value = groupsWithWebsitesData
+
+      console.log('Groups loaded:', groups.value.length)
+    } catch (err) {
+      handleError(err, 'Error loading groups')
+      throw err
+    }
+  }
+
+  const createGroup = async (groupData: { name: string; color?: string; icon?: string }) => {
+    try {
+      loading.value = true
+      clearError()
+
+      const newGroup = await api.createGroup(groupData)
+      groups.value.push(newGroup)
+
+      // 重新加载所有数据以确保同步
+      await loadData()
+
+      showSuccess('分组创建成功')
+      return newGroup
+    } catch (err) {
+      handleError(err, 'Error creating group')
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const updateGroup = async (
+    id: string,
+    updates: { name?: string; color?: string; icon?: string; isCollapsed?: boolean },
+  ) => {
+    try {
+      loading.value = true
+      clearError()
+
+      const updatedGroup = await api.updateGroup(id, updates)
+
+      // 更新本地状态
+      const index = groups.value.findIndex((g) => g.id === id)
+      if (index !== -1) {
+        groups.value[index] = updatedGroup
+      }
+
+      // 更新groupsWithWebsites中的分组信息
+      const groupWithWebsitesIndex = groupsWithWebsites.value.findIndex((g) => g.id === id)
+      if (groupWithWebsitesIndex !== -1) {
+        groupsWithWebsites.value[groupWithWebsitesIndex] = {
+          ...updatedGroup,
+          websites: groupsWithWebsites.value[groupWithWebsitesIndex].websites,
+        }
+      }
+
+      showSuccess('分组更新成功')
+      return updatedGroup
+    } catch (err) {
+      handleError(err, 'Error updating group')
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const deleteGroup = async (id: string) => {
+    try {
+      loading.value = true
+      clearError()
+
+      await api.deleteGroup(id)
+
+      // 从本地状态中移除
+      groups.value = groups.value.filter((g) => g.id !== id)
+      groupsWithWebsites.value = groupsWithWebsites.value.filter((g) => g.id !== id)
+
+      // 重新加载网站数据，因为分组删除后网站会被移出分组
+      const websitesData = await api.getWebsites()
+      sites.value = Array.isArray(websitesData) ? websitesData : []
+
+      showSuccess('分组删除成功')
+    } catch (err) {
+      handleError(err, 'Error deleting group')
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const toggleGroupCollapse = (groupId: string) => {
+    // 更新本地状态中的折叠状态
+    const groupIndex = groups.value.findIndex((g) => g.id === groupId)
+    if (groupIndex !== -1) {
+      groups.value[groupIndex].isCollapsed = !groups.value[groupIndex].isCollapsed
+    }
+
+    // 同时更新groupsWithWebsites中的状态
+    const groupWithWebsitesIndex = groupsWithWebsites.value.findIndex((g) => g.id === groupId)
+    if (groupWithWebsitesIndex !== -1) {
+      groupsWithWebsites.value[groupWithWebsitesIndex].isCollapsed =
+        !groupsWithWebsites.value[groupWithWebsitesIndex].isCollapsed
+    }
+  }
+
+  const moveWebsiteToGroup = async (websiteId: string, groupId?: string, position?: number) => {
+    try {
+      loading.value = true
+      clearError()
+
+      await api.moveWebsiteToGroup(websiteId, groupId, position)
+
+      // 重新加载数据
+      await Promise.all([loadGroups(), loadData()])
+
+      showSuccess('网站移动成功')
+    } catch (err) {
+      handleError(err, 'Error moving website')
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  const reorderGroups = async (groupIds: string[]) => {
+    try {
+      loading.value = true
+      clearError()
+
+      await api.reorderGroups(groupIds)
+
+      // 重新排序本地状态
+      const orderedGroups = groupIds
+        .map((id) => groups.value.find((g) => g.id === id)!)
+        .filter(Boolean)
+      groups.value = orderedGroups
+
+      showSuccess('分组排序成功')
+    } catch (err) {
+      handleError(err, 'Error reordering groups')
+      throw err
+    } finally {
+      loading.value = false
+    }
+  }
+
+  // 分组模态框控制
+  const openGroupModal = () => {
+    isGroupModalOpen.value = true
+    editingGroup.value = null
+  }
+
+  const openEditGroupModal = (group: Group) => {
+    isGroupModalOpen.value = true
+    editingGroup.value = group
+  }
+
+  const closeGroupModal = () => {
+    isGroupModalOpen.value = false
+    editingGroup.value = null
+  }
+
   return {
     // 状态
     sites,
+    groups,
+    groupsWithWebsites,
     searchQuery,
     isAddCardModalOpen,
     isSettingsModalOpen,
+    isGroupModalOpen,
     editingCard,
+    editingGroup,
     currentSearchEngine,
     settings,
     loading,
@@ -752,6 +976,18 @@ export const useAppStore = defineStore('app', () => {
     deleteSearchEngine,
     addSearchEngineWithIcon,
     updateSearchEngineWithIcon,
+
+    // 分组方法
+    loadGroups,
+    createGroup,
+    updateGroup,
+    deleteGroup,
+    toggleGroupCollapse,
+    moveWebsiteToGroup,
+    reorderGroups,
+    openGroupModal,
+    openEditGroupModal,
+    closeGroupModal,
 
     // 通知方法
     showNotification,

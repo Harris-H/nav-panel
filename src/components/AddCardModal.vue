@@ -142,13 +142,13 @@
         </div>
 
         <div class="form-group">
-          <label for="category">分类</label>
-          <input
-            id="category"
-            v-model="form.category"
-            type="text"
-            placeholder="如：工具、娱乐、学习等"
-          />
+          <label for="group">分组</label>
+          <select id="group" v-model="form.groupId" class="group-select">
+            <option value="">未分组</option>
+            <option v-for="group in store.groups" :key="group.id" :value="group.id">
+              {{ group.icon || '📁' }} {{ group.name }}
+            </option>
+          </select>
         </div>
 
         <div class="modal-actions">
@@ -173,7 +173,7 @@ const form = ref({
   url: '',
   icon: '',
   description: '',
-  category: '',
+  groupId: '',
 })
 
 const fileInput = ref<HTMLInputElement>()
@@ -191,7 +191,7 @@ const resetForm = () => {
     url: '',
     icon: '',
     description: '',
-    category: '',
+    groupId: '',
   }
   iconPreview.value = ''
   autoFetched.value = false
@@ -207,7 +207,7 @@ watch(
         url: card.url,
         icon: card.icon || '',
         description: card.description || '',
-        category: card.category || '',
+        groupId: card.groupId || '',
       }
       iconPreview.value = card.icon || ''
       autoFetched.value = false
@@ -446,7 +446,7 @@ const handleSubmit = () => {
     url: url,
     icon: form.value.icon || '',
     description: form.value.description.trim(),
-    category: form.value.category.trim(),
+    groupId: form.value.groupId || '',
   }
 
   if (isEditing.value) {
@@ -536,7 +536,8 @@ const handleSubmit = () => {
 }
 
 .form-group input,
-.form-group textarea {
+.form-group textarea,
+.form-group select {
   width: 100%;
   padding: 10px 12px;
   border: 1px solid #ddd;
@@ -547,9 +548,19 @@ const handleSubmit = () => {
 }
 
 .form-group input:focus,
-.form-group textarea:focus {
+.form-group textarea:focus,
+.form-group select:focus {
   outline: none;
   border-color: #667eea;
+}
+
+.group-select {
+  background: white;
+  cursor: pointer;
+}
+
+.group-select option {
+  padding: 8px;
 }
 
 .form-group small {

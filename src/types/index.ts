@@ -5,6 +5,8 @@ export interface Website {
   icon?: string
   description?: string
   category?: string
+  groupId?: string | null
+  sortOrder?: number
   createdAt?: string
   updatedAt?: string
 }
@@ -51,4 +53,19 @@ export interface Category {
   name: string
   color?: string
   icon?: string
+}
+
+export interface Group {
+  id: string
+  name: string
+  color?: string
+  icon?: string
+  sortOrder: number
+  isCollapsed: boolean
+  createdAt?: string
+  updatedAt?: string
+}
+
+export interface GroupWithWebsites extends Group {
+  websites: Website[]
 }

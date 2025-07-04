@@ -71,13 +71,13 @@ func (h *GroupHandler) UpdateGroup(c *gin.Context) {
 		return
 	}
 
-	err := h.groupService.UpdateGroup(id, req)
+	updatedGroup, err := h.groupService.UpdateGroup(id, req)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"message": "Group updated successfully"})
+	c.JSON(http.StatusOK, gin.H{"data": updatedGroup})
 }
 
 // DeleteGroup 删除分组

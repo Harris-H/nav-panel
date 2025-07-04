@@ -122,7 +122,7 @@ func (r *GroupRepository) Create(req model.CreateGroupRequest) (*model.Group, er
 }
 
 // Update 更新分组
-func (r *GroupRepository) Update(id string, req model.UpdateGroupRequest) error {
+func (r *GroupRepository) Update(id string, req model.UpdateGroupRequest) (*model.Group, error) {
 	setParts := []string{}
 	args := []interface{}{}
 
@@ -144,7 +144,7 @@ func (r *GroupRepository) Update(id string, req model.UpdateGroupRequest) error 
 	}
 
 	if len(setParts) == 0 {
-		return fmt.Errorf("no fields to update")
+		return nil, fmt.Errorf("no fields to update")
 	}
 
 	setParts = append(setParts, "updated_at = ?")
@@ -154,7 +154,28 @@ func (r *GroupRepository) Update(id string, req model.UpdateGroupRequest) error 
 	query := fmt.Sprintf("UPDATE groups SET %s WHERE id = ?", strings.Join(setParts, ", "))
 
 	_, err := r.db.Exec(query, args...)
-	return err
+	if err != nil {
+		return nil, err
+	}
+
+	// 返回更新后的分组
+	return r.GetByID(id)
+}
+
+// GetByID 根据ID获取分组
+func (r *GroupRepository) GetByID(id string) (*model.Group, error) {
+	query := `SELECT id, name, color, icon, sort_order, is_collapsed, created_at, updated_at 
+	          FROM groups WHERE id = ?`
+	
+	row := r.db.QueryRow(query, id)
+	
+	var group model.Group
+	err := row.Scan(&group.ID, &group.Name, &group.Color, &group.Icon, &group.SortOrder, &group.IsCollapsed, &group.CreatedAt, &group.UpdatedAt)
+	if err != nil {
+		return nil, err
+	}
+	
+	return &group, nil
 }
 
 // Delete 删除分组

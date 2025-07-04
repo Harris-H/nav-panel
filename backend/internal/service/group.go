@@ -35,10 +35,10 @@ func (s *GroupService) CreateGroup(req model.CreateGroupRequest) (*model.Group, 
 }
 
 // UpdateGroup 更新分组
-func (s *GroupService) UpdateGroup(id string, req model.UpdateGroupRequest) error {
+func (s *GroupService) UpdateGroup(id string, req model.UpdateGroupRequest) (*model.Group, error) {
 	// 业务逻辑验证
 	if req.Name != nil && *req.Name == "" {
-		return fmt.Errorf("分组名称不能为空")
+		return nil, fmt.Errorf("分组名称不能为空")
 	}
 
 	return s.repo.Update(id, req)

@@ -1,4 +1,4 @@
-import type { Website, AppSettings, SearchEngine } from '@/types'
+import type { Website, AppSettings, SearchEngine, Group, GroupWithWebsites } from '@/types'
 
 const API_BASE_URL = '/api'
 
@@ -199,6 +199,52 @@ class ApiClient {
     return this.request<void>('/import', {
       method: 'POST',
       body: JSON.stringify(data),
+    })
+  }
+
+  // 分组相关API
+  async getGroups(): Promise<Group[]> {
+    return this.request<Group[]>('/groups')
+  }
+
+  async getGroupsWithWebsites(): Promise<GroupWithWebsites[]> {
+    return this.request<GroupWithWebsites[]>('/groups/with-websites')
+  }
+
+  async createGroup(group: { name: string; color?: string; icon?: string }): Promise<Group> {
+    return this.request<Group>('/groups', {
+      method: 'POST',
+      body: JSON.stringify(group),
+    })
+  }
+
+  async updateGroup(
+    id: string,
+    updates: { name?: string; color?: string; icon?: string; isCollapsed?: boolean },
+  ): Promise<Group> {
+    return this.request<Group>(`/groups/${id}`, {
+      method: 'PUT',
+      body: JSON.stringify(updates),
+    })
+  }
+
+  async deleteGroup(id: string): Promise<void> {
+    return this.request<void>(`/groups/${id}`, {
+      method: 'DELETE',
+    })
+  }
+
+  async reorderGroups(groupIds: string[]): Promise<void> {
+    return this.request<void>('/groups/reorder', {
+      method: 'PUT',
+      body: JSON.stringify({ groupIds }),
+    })
+  }
+
+  async moveWebsiteToGroup(websiteId: string, groupId?: string, position?: number): Promise<void> {
+    return this.request<void>('/groups/move-website', {
+      method: 'POST',
+      body: JSON.stringify({ websiteId, groupId, position }),
     })
   }
 }

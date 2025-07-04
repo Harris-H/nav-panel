@@ -3,6 +3,7 @@
     <header class="app-header">
       <h1>导航面板</h1>
       <div class="header-actions">
+        <button @click="store.openGroupModal()" class="btn-secondary">管理分组</button>
         <button @click="store.openAddCardModal()" class="btn-primary">添加网站</button>
         <button @click="store.openSettingsModal()" class="btn-secondary">设置</button>
       </div>
@@ -12,59 +13,91 @@
     <SearchBox />
 
     <main class="main-content">
-      <div class="sites-grid" :style="gridStyle">
-        <template v-for="(site, index) in store.sites" :key="site.id">
-          <!-- 插入指示器 -->
+      <!-- 分组展示 -->
+      <template v-for="group in store.groupsWithWebsites" :key="group.id">
+        <GroupSection
+          :group="group"
+          :websites="group.websites"
+          :grid-style="gridStyle"
+          :card-style="cardStyle"
+          @toggle-collapse="store.toggleGroupCollapse"
+          @edit-group="store.openEditGroupModal"
+          @delete-group="handleDeleteGroup"
+          @site-right-click="handleRightClick"
+          @site-mouse-down="handleSiteMouseDown"
+          @drop-website="handleDropWebsite"
+        />
+      </template>
+
+      <!-- 未分组的网站 -->
+      <div v-if="ungroupedSites.length > 0" class="ungrouped-section">
+        <div class="section-header">
+          <h3>未分组</h3>
+        </div>
+        <div class="sites-grid" :style="gridStyle">
+          <template v-for="(site, index) in ungroupedSites" :key="site.id">
+            <!-- 插入指示器 - 根据移动方向显示 -->
+            <div
+              v-if="
+                dragState.isDragging &&
+                (dragState.movingRight
+                  ? dragState.insertIndex + 1 === index
+                  : dragState.insertIndex === index)
+              "
+              class="insert-indicator"
+            ></div>
+
+            <div
+              class="site-card"
+              :style="cardStyle"
+              :class="{
+                dragging: dragState.isDragging && dragState.dragIndex === index,
+                'drag-placeholder': dragState.isDragging && dragState.dragIndex === index,
+              }"
+              @contextmenu.prevent="handleRightClick($event, site)"
+              @mousedown="handleUngroupedSiteMouseDown($event, index)"
+            >
+              <div class="site-icon" style="pointer-events: none">
+                <img
+                  v-if="site.icon"
+                  :src="site.icon"
+                  :alt="site.name"
+                  style="pointer-events: none"
+                />
+                <span v-else style="pointer-events: none">{{
+                  site.name.charAt(0).toUpperCase()
+                }}</span>
+              </div>
+              <div class="site-name" style="pointer-events: none">{{ site.name }}</div>
+            </div>
+          </template>
+
+          <!-- 末尾插入指示器 - 根据移动方向显示 -->
           <div
             v-if="
               dragState.isDragging &&
               (dragState.movingRight
-                ? dragState.insertIndex + 1 === index
-                : dragState.insertIndex === index)
+                ? dragState.insertIndex === ungroupedSites.length - 1
+                : dragState.insertIndex === ungroupedSites.length)
             "
             class="insert-indicator"
           ></div>
 
-          <div
-            class="site-card"
-            :class="{
-              dragging: dragState.isDragging && dragState.dragIndex === index,
-              'drag-placeholder': dragState.isDragging && dragState.dragIndex === index,
-            }"
-            :style="cardStyle"
-            @contextmenu.prevent="handleRightClick($event, site)"
-            @mousedown="handleMouseDown($event, index)"
-          >
-            <div class="site-icon" style="pointer-events: none">
-              <img
-                v-if="site.icon"
-                :src="site.icon"
-                :alt="site.name"
-                style="pointer-events: none"
-              />
-              <span v-else style="pointer-events: none">{{
-                site.name.charAt(0).toUpperCase()
-              }}</span>
-            </div>
-            <div class="site-name" style="pointer-events: none">{{ site.name }}</div>
+          <div class="site-card add-card" :style="cardStyle" @click="store.openAddCardModal()">
+            <div class="site-icon">+</div>
+            <div class="site-name">添加网站</div>
           </div>
-        </template>
-
-        <!-- 末尾插入指示器 -->
-        <div
-          v-if="
-            dragState.isDragging &&
-            (dragState.movingRight
-              ? dragState.insertIndex === store.sites.length - 1
-              : dragState.insertIndex === store.sites.length)
-          "
-          class="insert-indicator"
-        ></div>
-
-        <div class="site-card add-card" :style="cardStyle" @click="store.openAddCardModal()">
-          <div class="site-icon">+</div>
-          <div class="site-name">添加网站</div>
         </div>
+      </div>
+
+      <!-- 如果没有分组也没有网站 -->
+      <div
+        v-if="store.groupsWithWebsites.length === 0 && ungroupedSites.length === 0"
+        class="empty-state"
+      >
+        <div class="empty-icon">🌟</div>
+        <div class="empty-text">还没有添加任何网站</div>
+        <button @click="store.openAddCardModal()" class="btn-primary">添加第一个网站</button>
       </div>
     </main>
 
@@ -115,6 +148,14 @@
 
     <!-- 设置模态框 -->
     <SettingsModal />
+
+    <!-- 分组管理模态框 -->
+    <GroupModal
+      :show="store.isGroupModalOpen"
+      :group="store.editingGroup"
+      @close="store.closeGroupModal"
+      @submit="handleGroupSubmit"
+    />
   </div>
 </template>
 
@@ -124,6 +165,8 @@ import { useAppStore } from '@/stores/app'
 import AddCardModal from '@/components/AddCardModal.vue'
 import SettingsModal from '@/components/SettingsModal.vue'
 import SearchBox from '@/components/SearchBox.vue'
+import GroupModal from '@/components/GroupModal.vue'
+import GroupSection from '@/components/GroupSection.vue'
 import type { Website } from '@/types'
 
 const store = useAppStore()
@@ -159,6 +202,55 @@ const contextMenuStyle = computed(() => ({
 
 const openSite = (url: string) => {
   window.open(url, '_blank')
+}
+
+// 处理分组表单提交
+const handleGroupSubmit = async (data: { name: string; color?: string; icon?: string }) => {
+  try {
+    if (store.editingGroup) {
+      // 编辑分组
+      await store.updateGroup(store.editingGroup.id, data)
+    } else {
+      // 创建分组
+      await store.createGroup(data)
+    }
+    // 操作成功后关闭模态框
+    store.closeGroupModal()
+  } catch (error) {
+    console.error('Group operation failed:', error)
+  }
+}
+
+// 处理删除分组
+const handleDeleteGroup = async (groupId: string) => {
+  if (confirm('确定要删除这个分组吗？分组内的网站将移动到未分组。')) {
+    try {
+      await store.deleteGroup(groupId)
+    } catch (error) {
+      console.error('Delete group failed:', error)
+    }
+  }
+}
+
+// 处理分组内网站的鼠标按下
+const handleSiteMouseDown = (event: MouseEvent, index: number, groupId: string) => {
+  // 这里可以实现分组内网站的拖拽功能
+  console.log('Site mouse down in group:', { index, groupId })
+}
+
+// 处理未分组网站的鼠标按下
+const handleUngroupedSiteMouseDown = (event: MouseEvent, index: number) => {
+  // 使用原有的拖拽逻辑
+  handleMouseDown(event, index)
+}
+
+// 处理网站拖放到分组
+const handleDropWebsite = async (websiteId: string, targetGroupId: string, position?: number) => {
+  try {
+    await store.moveWebsiteToGroup(websiteId, targetGroupId, position)
+  } catch (error) {
+    console.error('Drop website failed:', error)
+  }
 }
 
 // 拖拽辅助函数
@@ -491,7 +583,8 @@ const hideContextMenu = () => {
 const handleClickOutside = (event: Event) => {
   if (contextMenu.value.show) {
     const target = event.target as Element
-    if (!contextMenuRef.value?.contains(target)) {
+    // 检查点击的元素不在HomeView的右键菜单内，且不在任何右键菜单内
+    if (!contextMenuRef.value?.contains(target) && !target.closest('.context-menu')) {
       hideContextMenu()
     }
   }
@@ -536,6 +629,15 @@ const cardStyle = computed(() => {
       ? '0 8px 32px rgba(0, 0, 0, 0.1), inset 0 1px 0 rgba(255, 255, 255, 0.2)'
       : 'none',
   }
+})
+
+// 未分组的网站
+const ungroupedSites = computed(() => {
+  // 更准确的过滤条件：groupId 为 null、undefined 或空字符串的网站
+  return store.sites.filter(
+    (site) =>
+      !site.groupId || site.groupId === '' || site.groupId === null || site.groupId === undefined,
+  )
 })
 
 onMounted(() => {
@@ -1060,5 +1162,52 @@ body.dragging * {
     padding: 14px 18px;
     font-size: 15px;
   }
+}
+
+/* 未分组部分样式 */
+.ungrouped-section {
+  margin-bottom: 24px;
+}
+
+.section-header {
+  margin-bottom: 16px;
+}
+
+.section-header h3 {
+  margin: 0;
+  font-size: 18px;
+  font-weight: 600;
+  color: rgba(255, 255, 255, 0.9);
+  padding-left: 8px;
+  border-left: 3px solid rgba(255, 255, 255, 0.5);
+}
+
+/* 空状态样式 */
+.empty-state {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  padding: 80px 20px;
+  text-align: center;
+}
+
+.empty-icon {
+  font-size: 64px;
+  margin-bottom: 24px;
+  opacity: 0.8;
+}
+
+.empty-text {
+  font-size: 18px;
+  color: rgba(255, 255, 255, 0.8);
+  margin-bottom: 32px;
+  max-width: 400px;
+  line-height: 1.5;
+}
+
+.empty-state .btn-primary {
+  font-size: 16px;
+  padding: 16px 32px;
 }
 </style>

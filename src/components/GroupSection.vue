@@ -274,22 +274,28 @@ onUnmounted(() => {
   margin-bottom: 24px;
   background: linear-gradient(145deg, rgba(255, 255, 255, 0.1) 0%, rgba(255, 255, 255, 0.05) 100%);
   border-radius: 16px;
-  backdrop-filter: blur(10px);
+  backdrop-filter: blur(8px);
   border: 1px solid rgba(255, 255, 255, 0.15);
   overflow: hidden;
-  transition: all 0.3s ease;
+  transition: transform 0.2s ease;
+  will-change: transform;
+}
+
+.group-section:hover {
+  transform: translateY(-1px);
 }
 
 .group-header {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 16px 20px;
+  padding: 8px 20px;
   background: rgba(255, 255, 255, 0.08);
   border-left: 4px solid #667eea;
   cursor: pointer;
-  transition: all 0.3s ease;
+  transition: background 0.15s ease;
   user-select: none;
+  will-change: background;
 }
 
 .group-header:hover {
@@ -312,7 +318,7 @@ onUnmounted(() => {
 }
 
 .group-name {
-  font-size: 16px;
+  font-size: 18px;
   font-weight: 600;
   color: white;
 }
@@ -336,10 +342,14 @@ onUnmounted(() => {
   cursor: pointer;
   padding: 4px;
   border-radius: 6px;
-  transition: all 0.3s ease;
+  transition:
+    background-color 0.2s ease,
+    color 0.2s ease,
+    transform 0.25s cubic-bezier(0.4, 0, 0.2, 1);
   display: flex;
   align-items: center;
   justify-content: center;
+  will-change: transform;
 }
 
 .toggle-btn:hover {
@@ -352,23 +362,22 @@ onUnmounted(() => {
 }
 
 .group-content {
-  padding: 0 20px 20px;
-  transition:
-    opacity 0.15s ease,
-    transform 0.15s ease,
-    max-height 0.15s ease;
-  transform-origin: top;
-  max-height: 1000px;
-  opacity: 1;
-  transform: scaleY(1);
+  padding: 8px 20px 16px;
   overflow: hidden;
+  transition:
+    max-height 0.3s cubic-bezier(0.4, 0, 0.2, 1),
+    opacity 0.25s ease,
+    padding 0.3s cubic-bezier(0.4, 0, 0.2, 1);
+  opacity: 1;
+  max-height: 500px; /* 足够容纳大多数分组内容 */
+  will-change: max-height, opacity;
 }
 
 .group-content.collapsed {
-  max-height: 0;
   opacity: 0;
-  transform: scaleY(0.98);
+  max-height: 0;
   padding: 0 20px;
+  pointer-events: none;
 }
 
 .drop-zone {
@@ -424,16 +433,21 @@ onUnmounted(() => {
   padding: 12px 8px;
   text-align: center;
   cursor: grab;
-  transition: all 0.4s cubic-bezier(0.175, 0.885, 0.32, 1.275);
-  backdrop-filter: blur(20px);
+  transition:
+    transform 0.25s cubic-bezier(0.25, 0.46, 0.45, 0.94),
+    box-shadow 0.25s ease,
+    background 0.25s ease;
+  backdrop-filter: blur(10px);
   border: 1px solid rgba(255, 255, 255, 0.15);
   box-shadow:
     0 4px 16px rgba(0, 0, 0, 0.08),
     inset 0 1px 0 rgba(255, 255, 255, 0.15);
   position: relative;
   overflow: hidden;
+  will-change: transform;
 }
 
+/* 简化微光效果，减少性能消耗 */
 .site-card::before {
   content: '';
   position: absolute;
@@ -441,12 +455,14 @@ onUnmounted(() => {
   left: -100%;
   width: 100%;
   height: 100%;
-  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.15), transparent);
-  transition: left 0.5s ease;
+  background: linear-gradient(90deg, transparent, rgba(255, 255, 255, 0.1), transparent);
+  transition: left 0.3s ease;
+  opacity: 0;
 }
 
 .site-card:hover::before {
   left: 100%;
+  opacity: 1;
 }
 
 .site-card:hover {
@@ -471,14 +487,15 @@ onUnmounted(() => {
   font-size: 14px;
   font-weight: bold;
   overflow: hidden;
-  transition: all 0.3s ease;
+  transition: transform 0.2s ease;
   position: relative;
   border: none;
+  will-change: transform;
 }
 
 .site-icon:not(:has(img)) {
   background: linear-gradient(135deg, rgba(255, 255, 255, 0.12) 0%, rgba(255, 255, 255, 0.06) 100%);
-  backdrop-filter: blur(15px);
+  backdrop-filter: blur(8px);
   border: none;
   border-radius: 12px;
 }
@@ -488,19 +505,17 @@ onUnmounted(() => {
   height: 100%;
   object-fit: cover;
   background: transparent;
-  opacity: 0.85;
-  transition: all 0.3s ease;
-  filter: brightness(1.1) contrast(0.9);
+  opacity: 0.9;
+  transition: opacity 0.2s ease;
   border: none;
 }
 
 .site-card:hover .site-icon {
-  transform: scale(1.1);
+  transform: scale(1.08);
 }
 
 .site-card:hover .site-icon img {
   opacity: 1;
-  filter: brightness(1.2) contrast(1);
 }
 
 .site-name {

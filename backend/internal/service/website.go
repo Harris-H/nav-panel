@@ -34,6 +34,7 @@ func (s *WebsiteService) Create(req *model.CreateWebsiteRequest) (*model.Website
 		Icon:        req.Icon,
 		Description: req.Description,
 		Category:    req.Category,
+		GroupId:     req.GroupId,
 	}
 
 	err := s.repo.Create(website)
@@ -67,6 +68,14 @@ func (s *WebsiteService) Update(id string, req *model.UpdateWebsiteRequest) (*mo
 	}
 	if req.Category != nil {
 		updates["category"] = *req.Category
+	}
+	if req.GroupId != nil {
+		// 处理 groupId：如果是空字符串，设置为 NULL
+		if *req.GroupId == "" {
+			updates["group_id"] = nil
+		} else {
+			updates["group_id"] = *req.GroupId
+		}
 	}
 
 	// 执行更新

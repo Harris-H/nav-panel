@@ -16,7 +16,7 @@ func NewWebsiteRepository(db *sql.DB) *WebsiteRepository {
 
 func (r *WebsiteRepository) GetAll() ([]model.Website, error) {
 	query := `
-		SELECT id, name, url, icon, description, category, created_at, updated_at, COALESCE(sort_order, 0) as sort_order
+		SELECT id, name, url, icon, description, category, group_id, created_at, updated_at, COALESCE(sort_order, 0) as sort_order
 		FROM websites 
 		ORDER BY sort_order ASC, created_at DESC
 	`
@@ -30,7 +30,7 @@ func (r *WebsiteRepository) GetAll() ([]model.Website, error) {
 	var websites []model.Website
 	for rows.Next() {
 		var w model.Website
-		err := rows.Scan(&w.ID, &w.Name, &w.URL, &w.Icon, &w.Description, &w.Category, &w.CreatedAt, &w.UpdatedAt, &w.SortOrder)
+		err := rows.Scan(&w.ID, &w.Name, &w.URL, &w.Icon, &w.Description, &w.Category, &w.GroupId, &w.CreatedAt, &w.UpdatedAt, &w.SortOrder)
 		if err != nil {
 			return nil, err
 		}
@@ -42,13 +42,13 @@ func (r *WebsiteRepository) GetAll() ([]model.Website, error) {
 
 func (r *WebsiteRepository) GetByID(id string) (*model.Website, error) {
 	query := `
-		SELECT id, name, url, icon, description, category, created_at, updated_at, COALESCE(sort_order, 0) as sort_order
+		SELECT id, name, url, icon, description, category, group_id, created_at, updated_at, COALESCE(sort_order, 0) as sort_order
 		FROM websites 
 		WHERE id = ?
 	`
 	
 	var w model.Website
-	err := r.db.QueryRow(query, id).Scan(&w.ID, &w.Name, &w.URL, &w.Icon, &w.Description, &w.Category, &w.CreatedAt, &w.UpdatedAt, &w.SortOrder)
+	err := r.db.QueryRow(query, id).Scan(&w.ID, &w.Name, &w.URL, &w.Icon, &w.Description, &w.Category, &w.GroupId, &w.CreatedAt, &w.UpdatedAt, &w.SortOrder)
 	if err != nil {
 		return nil, err
 	}
@@ -58,15 +58,15 @@ func (r *WebsiteRepository) GetByID(id string) (*model.Website, error) {
 
 func (r *WebsiteRepository) Create(website *model.Website) error {
 	query := `
-		INSERT INTO websites (id, name, url, icon, description, category, created_at, updated_at)
-		VALUES (?, ?, ?, ?, ?, ?, ?, ?)
+		INSERT INTO websites (id, name, url, icon, description, category, group_id, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
 	`
 	
 	now := time.Now()
 	website.CreatedAt = now
 	website.UpdatedAt = now
 
-	_, err := r.db.Exec(query, website.ID, website.Name, website.URL, website.Icon, website.Description, website.Category, website.CreatedAt, website.UpdatedAt)
+	_, err := r.db.Exec(query, website.ID, website.Name, website.URL, website.Icon, website.Description, website.Category, website.GroupId, website.CreatedAt, website.UpdatedAt)
 	return err
 }
 

@@ -40,6 +40,23 @@ func Migrate(db *sql.DB) error {
 		return err
 	}
 
+	// 创建分组表
+	groupsSQL := `
+	CREATE TABLE IF NOT EXISTS groups (
+		id TEXT PRIMARY KEY,
+		name TEXT NOT NULL,
+		color TEXT,
+		icon TEXT,
+		sort_order INTEGER DEFAULT 0,
+		is_collapsed BOOLEAN DEFAULT FALSE,
+		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+	);`
+
+	if _, err := db.Exec(groupsSQL); err != nil {
+		return err
+	}
+
 	// 创建网站表
 	websitesSQL := `
 	CREATE TABLE IF NOT EXISTS websites (
@@ -49,8 +66,10 @@ func Migrate(db *sql.DB) error {
 		icon TEXT,
 		description TEXT,
 		category TEXT,
+		group_id TEXT,
 		created_at DATETIME DEFAULT CURRENT_TIMESTAMP,
-		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP
+		updated_at DATETIME DEFAULT CURRENT_TIMESTAMP,
+		FOREIGN KEY (group_id) REFERENCES groups (id) ON DELETE SET NULL
 	);`
 
 	if _, err := db.Exec(websitesSQL); err != nil {
@@ -77,6 +96,9 @@ func Migrate(db *sql.DB) error {
 		return err
 	}
 	if err := addColumnIfNotExists(db, "websites", "sort_order", "INTEGER DEFAULT 0"); err != nil {
+		return err
+	}
+	if err := addColumnIfNotExists(db, "websites", "group_id", "TEXT"); err != nil {
 		return err
 	}
 

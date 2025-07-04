@@ -30,11 +30,13 @@ func main() {
 	websiteRepo := repository.NewWebsiteRepository(db)
 	searchEngineRepo := repository.NewSearchEngineRepository(db)
 	settingsRepo := repository.NewSettingsRepository(db)
+	groupRepo := repository.NewGroupRepository(db)
 
 	// 初始化服务层
 	websiteService := service.NewWebsiteService(websiteRepo)
 	searchEngineService := service.NewSearchEngineService(searchEngineRepo)
 	settingsService := service.NewSettingsService(settingsRepo)
+	groupService := service.NewGroupService(groupRepo)
 	
 	// 为设置服务设置其他仓库依赖（用于导入导出功能）
 	settingsService.SetRepositories(websiteRepo, searchEngineRepo)
@@ -43,6 +45,7 @@ func main() {
 	websiteHandler := handler.NewWebsiteHandler(websiteService)
 	searchEngineHandler := handler.NewSearchEngineHandler(searchEngineService)
 	settingsHandler := handler.NewSettingsHandler(settingsService)
+	groupHandler := handler.NewGroupHandler(groupService)
 
 	// 初始化 Gin 路由
 	r := gin.Default()
@@ -92,6 +95,18 @@ func main() {
 		{
 			settings.GET("", settingsHandler.Get)
 			settings.PUT("", settingsHandler.Update)
+		}
+
+		// 分组路由
+		groups := api.Group("/groups")
+		{
+			groups.GET("", groupHandler.GetGroups)
+			groups.GET("/with-websites", groupHandler.GetGroupsWithWebsites)
+			groups.POST("", groupHandler.CreateGroup)
+			groups.PUT("/reorder", groupHandler.ReorderGroups)
+			groups.PUT("/:id", groupHandler.UpdateGroup)
+			groups.DELETE("/:id", groupHandler.DeleteGroup)
+			groups.POST("/move-website", groupHandler.MoveWebsiteToGroup)
 		}
 
 		// 数据导入导出

@@ -41,8 +41,8 @@
               v-if="
                 dragState.isDragging &&
                 (dragState.movingRight
-                  ? dragState.insertIndex + 1 === index
-                  : dragState.insertIndex === index)
+                  ? dragState.insertIndex === index
+                  : dragState.insertIndex - 1 === index)
               "
               class="insert-indicator"
             ></div>
@@ -77,7 +77,7 @@
             v-if="
               dragState.isDragging &&
               (dragState.movingRight
-                ? dragState.insertIndex === ungroupedSites.length - 1
+                ? dragState.insertIndex === ungroupedSites.length
                 : dragState.insertIndex === ungroupedSites.length)
             "
             class="insert-indicator"

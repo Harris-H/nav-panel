@@ -41,8 +41,8 @@
               v-if="
                 dragState.isDragging &&
                 (dragState.movingRight
-                  ? dragState.insertIndex === index
-                  : dragState.insertIndex - 1 === index)
+                  ? dragState.insertIndex + 1 === index
+                  : dragState.insertIndex === index)
               "
               class="insert-indicator"
             ></div>
@@ -55,7 +55,7 @@
                 'drag-placeholder': dragState.isDragging && dragState.dragIndex === index,
               }"
               @contextmenu.prevent="handleRightClick($event, site)"
-              @mousedown="handleUngroupedSiteMouseDown($event, index)"
+              @mousedown="handleMouseDown($event, index)"
             >
               <div class="site-icon" style="pointer-events: none">
                 <img
@@ -77,7 +77,7 @@
             v-if="
               dragState.isDragging &&
               (dragState.movingRight
-                ? dragState.insertIndex === ungroupedSites.length
+                ? dragState.insertIndex + 1 === ungroupedSites.length
                 : dragState.insertIndex === ungroupedSites.length)
             "
             class="insert-indicator"
@@ -168,6 +168,7 @@ import SearchBox from '@/components/SearchBox.vue'
 import GroupModal from '@/components/GroupModal.vue'
 import GroupSection from '@/components/GroupSection.vue'
 import type { Website } from '@/types'
+import { api } from '@/utils/api'
 
 const store = useAppStore()
 const contextMenuRef = ref<HTMLElement>()
@@ -238,10 +239,47 @@ const handleSiteMouseDown = (event: MouseEvent, index: number, groupId: string) 
   console.log('Site mouse down in group:', { index, groupId })
 }
 
-// 处理未分组网站的鼠标按下
-const handleUngroupedSiteMouseDown = (event: MouseEvent, index: number) => {
-  // 使用原有的拖拽逻辑
-  handleMouseDown(event, index)
+// 未分组网站排序方法
+const reorderUngroupedSites = async (fromIndex: number, toIndex: number) => {
+  if (fromIndex === toIndex) return
+
+  try {
+    // 获取未分组网站的完整信息
+    const ungroupedSitesArray = [...ungroupedSites.value]
+    const movedSite = ungroupedSitesArray[fromIndex]
+
+    if (!movedSite) {
+      console.error('Site not found at index:', fromIndex)
+      return
+    }
+
+    // 在前端临时更新数组顺序，提供即时反馈
+    ungroupedSitesArray.splice(fromIndex, 1)
+    ungroupedSitesArray.splice(toIndex, 0, movedSite)
+
+    // 更新store中的sites数组：保持分组网站不变，只重新排序未分组网站
+    const allSites = [...store.sites]
+    const groupedSites = allSites.filter(
+      (site) =>
+        site.groupId && site.groupId !== '' && site.groupId !== null && site.groupId !== undefined,
+    )
+
+    // 将重新排序后的未分组网站与分组网站合并
+    store.sites = [...groupedSites, ...ungroupedSitesArray]
+
+    // 发送新的顺序到后端（只发送未分组网站的ID）
+    const ungroupedWebsiteIds = ungroupedSitesArray.map((site) => site.id)
+
+    // 这里我们仍然使用现有的 reorderSites 方法，但只传递未分组网站的数据
+    // 或者可以创建新的API端点专门处理未分组网站排序
+    await api.reorderWebsites(ungroupedWebsiteIds)
+
+    console.log('Ungrouped sites reordered successfully:', { fromIndex, toIndex })
+  } catch (err) {
+    console.error('Failed to reorder ungrouped sites:', err)
+    // 如果失败，重新加载数据恢复正确状态
+    await store.loadData()
+  }
 }
 
 // 处理网站拖放到分组
@@ -254,8 +292,7 @@ const handleDropWebsite = async (websiteId: string, targetGroupId: string, posit
 }
 
 // 拖拽辅助函数
-const createDragPreview = (sourceElement: HTMLElement, index: number) => {
-  const site = store.sites[index]
+const createDragPreview = (sourceElement: HTMLElement, site: Website) => {
   if (!site) {
     return
   }
@@ -313,11 +350,12 @@ const updateDragPreview = (x: number, y: number) => {
   }
 }
 
-const calculateInsertPosition = (x: number): number => {
-  const sitesGrid = document.querySelector('.sites-grid')
+// 计算未分组网站的插入位置
+const calculateUngroupedInsertPosition = (x: number): number => {
+  const sitesGrid = document.querySelector('.ungrouped-section .sites-grid')
   if (!sitesGrid) return -1
 
-  const allCards = Array.from(document.querySelectorAll('.site-card:not(.add-card)'))
+  const allCards = Array.from(sitesGrid.querySelectorAll('.site-card:not(.add-card)'))
   if (allCards.length === 0) return 0
 
   // 如果只有一个卡片（被拖拽的），返回0
@@ -327,19 +365,13 @@ const calculateInsertPosition = (x: number): number => {
   const visibleCardInfos = allCards
     .map((card, index) => ({
       element: card,
-      originalIndex: index, // 在原始sites数组中的索引
+      originalIndex: index, // 在ungroupedSites数组中的索引
       rect: card.getBoundingClientRect(),
       isDragTarget: index === dragState.value.dragIndex,
     }))
     .filter((card) => !card.isDragTarget) // 只保留可见的卡片
 
-  // 计算插入位置的逻辑：
-  // 1. 遍历所有可见卡片（排除被拖拽的）
-  // 2. 找到鼠标当前悬停的卡片区域
-  // 3. 根据移动方向决定插入位置
-  // 4. 最后转换回原始数组的索引
-
-  let insertIndex = store.sites.length // 默认插入到末尾
+  let insertIndex = ungroupedSites.value.length // 默认插入到末尾
 
   for (let i = 0; i < visibleCardInfos.length; i++) {
     const card = visibleCardInfos[i]
@@ -355,21 +387,18 @@ const calculateInsertPosition = (x: number): number => {
         // 向右移动：基于前一个卡片的位置计算threshold
         let threshold = leftEdge
         if (i > 0) {
-          // 如果有前一个卡片，基于前一个卡片的右侧向左偏移30%宽度
           const prevCard = visibleCardInfos[i - 1]
           threshold = prevCard.rect.right - prevCard.rect.width * 0.05
         } else {
-          // 如果是第一个卡片，使用卡片自身的10%位置
           threshold = leftEdge + rect.width * 0.1
         }
 
         if (x >= threshold) {
           // 插入到这个可见卡片之后
-          // 需要转换回原始索引：找到下一个卡片的位置，或插入到末尾
           if (i + 1 < visibleCardInfos.length) {
             insertIndex = visibleCardInfos[i + 1].originalIndex
           } else {
-            insertIndex = store.sites.length
+            insertIndex = ungroupedSites.value.length
           }
         } else {
           // 插入到这个可见卡片之前
@@ -386,7 +415,7 @@ const calculateInsertPosition = (x: number): number => {
           if (i + 1 < visibleCardInfos.length) {
             insertIndex = visibleCardInfos[i + 1].originalIndex
           } else {
-            insertIndex = store.sites.length
+            insertIndex = ungroupedSites.value.length
           }
         }
       }
@@ -401,13 +430,12 @@ const calculateInsertPosition = (x: number): number => {
   }
 
   // 处理被拖拽卡片的索引调整
-  // 如果插入位置在被拖拽卡片之后，需要减1（因为被拖拽的卡片会被移除）
   if (insertIndex > dragState.value.dragIndex) {
     insertIndex = insertIndex - 1
   }
 
-  // 确保索引在有效范围内，允许插入到末尾
-  insertIndex = Math.max(0, Math.min(insertIndex, store.sites.length))
+  // 确保索引在有效范围内
+  insertIndex = Math.max(0, Math.min(insertIndex, ungroupedSites.value.length))
 
   return insertIndex
 }
@@ -419,7 +447,7 @@ const cleanupDragPreview = () => {
   }
 }
 
-// 拖拽功能
+// 未分组网站拖拽功能
 const handleMouseDown = (event: MouseEvent, index: number) => {
   // 阻止右键和中键拖拽
   if (event.button !== 0) return
@@ -430,6 +458,7 @@ const handleMouseDown = (event: MouseEvent, index: number) => {
   let hasDragged = false
   const startX = event.clientX
   const startY = event.clientY
+  const site = ungroupedSites.value[index] // 使用ungroupedSites数组
 
   const handleMouseMove = (moveEvent: MouseEvent) => {
     const deltaX = moveEvent.clientX - startX
@@ -440,10 +469,10 @@ const handleMouseDown = (event: MouseEvent, index: number) => {
     if (!hasDragged && distance > 5) {
       hasDragged = true
 
-      // 先设置拖拽状态
+      // 设置拖拽状态
       dragState.value = {
         isDragging: true,
-        dragIndex: index,
+        dragIndex: index, // 这里是ungroupedSites的索引
         insertIndex: -1,
         startX: startX,
         startY: startY,
@@ -454,8 +483,8 @@ const handleMouseDown = (event: MouseEvent, index: number) => {
         dragPreview: null,
       }
 
-      // 然后创建拖拽预览
-      createDragPreview(event.target as HTMLElement, index)
+      // 创建拖拽预览，传入实际的site对象
+      createDragPreview(event.target as HTMLElement, site)
 
       document.body.style.userSelect = 'none'
       document.body.classList.add('dragging')
@@ -465,7 +494,6 @@ const handleMouseDown = (event: MouseEvent, index: number) => {
       // 计算移动方向
       const deltaX = moveEvent.clientX - dragState.value.lastX
       if (Math.abs(deltaX) > 2) {
-        // 避免微小移动导致频繁切换方向
         dragState.value.movingRight = deltaX > 0
       }
 
@@ -477,16 +505,16 @@ const handleMouseDown = (event: MouseEvent, index: number) => {
       updateDragPreview(moveEvent.clientX, moveEvent.clientY)
 
       // 计算插入位置
-      const insertIndex = calculateInsertPosition(moveEvent.clientX)
+      const insertIndex = calculateUngroupedInsertPosition(moveEvent.clientX)
       dragState.value.insertIndex = insertIndex
     }
   }
 
   const handleMouseUp = async () => {
     if (hasDragged) {
-      // 执行排序 - 允许插入到末尾
+      // 执行排序 - 针对未分组网站
       if (dragState.value.insertIndex !== -1 && dragState.value.insertIndex !== index) {
-        await store.reorderSites(index, dragState.value.insertIndex)
+        await reorderUngroupedSites(index, dragState.value.insertIndex)
       }
 
       // 清理拖拽预览
@@ -496,7 +524,6 @@ const handleMouseDown = (event: MouseEvent, index: number) => {
       document.body.classList.remove('dragging')
     } else {
       // 如果没有拖拽，执行原来的点击事件
-      const site = store.sites[index]
       if (site) {
         openSite(site.url)
       }

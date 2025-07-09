@@ -28,3 +28,6 @@ coverage
 *.sw?
 
 *.tsbuildinfo
+
+# Docker 配置文件（包含敏感信息）
+scripts/.docker-config

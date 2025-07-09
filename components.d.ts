@@ -10,6 +10,8 @@ declare module 'vue' {
   export interface GlobalComponents {
     AddCardModal: typeof import('./src/components/AddCardModal.vue')['default']
     ErrorMessage: typeof import('./src/components/ErrorMessage.vue')['default']
+    GroupModal: typeof import('./src/components/GroupModal.vue')['default']
+    GroupSection: typeof import('./src/components/GroupSection.vue')['default']
     LoadingSpinner: typeof import('./src/components/LoadingSpinner.vue')['default']
     RouterLink: typeof import('vue-router')['RouterLink']
     RouterView: typeof import('vue-router')['RouterView']
